@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific - Large files
+raw_videos/*.mp4
+data/raw_videos/*.mp4
+data/raw_videos/*.avi
+data/raw_videos/*.mov
+data/processed/clips/*.mp4
+data/processed/clips/*.avi
+data/processed/poses/*.npy
+data/processed/poses/*.pkl
+data/processed/features/*.npy
+data/processed/features/*.pkl
+
+#Shuttleset Annotations 
+data/annotations/*
+# Models (keep only final model for submission)
+models/*.h5
+models/*.pth
+models/*.pkl
+!models/final_model.h5
+!models/final_model.pth
+
+# MLflow
+mlruns/
+experiments/
+
+# Outputs (keep important visualizations only)
+outputs/plots/*.png
+outputs/plots/*.jpg
+!outputs/plots/final_*.png
+outputs/reports/*.html
+
+# Temporary files
+*.tmp
+*.log
+.cache/
+
+# Large data files
+*.zip
+*.tar.gz
+*.csv.gz

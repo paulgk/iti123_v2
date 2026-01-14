@@ -1,0 +1,13 @@
+======================================================================
+SHUTTLESET STROKE STATISTICS SUMMARY
+======================================================================
+
+Total strokes (Clear + Smash only): 5508
+
+By Stroke Type:
+  Clear     :   2922 (53.05%)
+  Smash     :   2586 (46.95%)
+
+Number of matches: 44
+Number of unique players: 2
+Years covered: 2018 - 2021
