@@ -266,13 +266,33 @@ Despite classification failure, this project demonstrates:
 
 ## References
 
-- **Dataset**: ShuttleSet - Badminton stroke video dataset
+### Dataset
+**ShuttleSet**: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis
+
+```bibtex
+@article{ShuttleSet,
+  author    = {Wei{-}Yao Wang and
+               Yung{-}Chang Huang and
+               Tsi{-}Ui Ik and
+               Wen{-}Chih Peng},
+  title     = {ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis},
+  journal   = {CoRR},
+  volume    = {abs/2306.04948},
+  year      = {2023}
+}
+```
+
+### Frameworks
 - **Pose Estimation**: Google MediaPipe Pose v0.10
-- **Frameworks**: TensorFlow/Keras 2.x, scikit-learn 1.3, OpenCV 4.x
+- **Deep Learning**: TensorFlow/Keras 2.x
+- **Machine Learning**: scikit-learn 1.3
+- **Computer Vision**: OpenCV 4.x
 
 ---
 
 ## Citation
+
+If you use this work, please cite:
 
 ```bibtex
 @misc{iti123_badminton_2026,
@@ -282,6 +302,8 @@ Despite classification failure, this project demonstrates:
   note={Milestone Report v1.0}
 }
 ```
+
+Please also cite the ShuttleSet dataset (see above).
 
 ---
 

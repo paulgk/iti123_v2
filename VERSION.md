@@ -139,9 +139,14 @@ Despite classification failure, this version demonstrates:
 
 ### References
 
-- **Dataset**: ShuttleSet (Badminton stroke videos)
-- **Pose Model**: Google MediaPipe Pose v0.10
-- **Framework**: TensorFlow/Keras 2.x, scikit-learn 1.3
+**Dataset**:
+- Wang, W.-Y., Huang, Y.-C., Ik, T.-U., & Peng, W.-C. (2023). ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis. *CoRR*, abs/2306.04948. https://arxiv.org/abs/2306.04948
+
+**Frameworks**:
+- Google MediaPipe Pose v0.10
+- TensorFlow/Keras 2.x
+- scikit-learn 1.3
+- OpenCV 4.x
 
 ---
 

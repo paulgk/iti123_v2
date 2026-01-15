@@ -2,6 +2,11 @@
 """
 Feature Engineering V2 - Improved Features for Clear vs Smash Classification
 
+Dataset:
+    ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton
+    Tactical Analysis (Wang et al., 2023)
+    https://arxiv.org/abs/2306.04948
+
 Key improvements based on diagnostic analysis:
 1. Focus on Z-coordinate (depth) - shows medium effect size
 2. Arm extension patterns - shows medium effect size
@@ -9,6 +14,12 @@ Key improvements based on diagnostic analysis:
 4. Body posture (lean angle, torso position)
 5. Temporal dynamics (peak velocity timing, stroke phase segmentation)
 6. Relative metrics (wrist relative to shoulder, not body center)
+7. Wrist/forearm orientation features (hypothesis-driven)
+
+References:
+    Wang, W.-Y., Huang, Y.-C., Ik, T.-U., & Peng, W.-C. (2023).
+    ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for
+    Badminton Tactical Analysis. CoRR, abs/2306.04948.
 """
 
 import os

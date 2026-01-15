@@ -5,6 +5,11 @@ Pose Estimation Script (Multi-Player Detection)
 Extract human pose keypoints from video clips using MediaPipe Pose.
 Both players are always visible - algorithm identifies the stroke executor.
 
+Dataset:
+    ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton
+    Tactical Analysis (Wang et al., 2023)
+    https://arxiv.org/abs/2306.04948
+
 Strategy for identifying stroke executor:
 1. Detect ALL persons in each frame (both players)
 2. Identify stroke executor based on:
@@ -19,6 +24,11 @@ Process:
 4. Track executor consistently across frames
 5. Interpolate missing frames
 6. Save pose sequences for feature engineering
+
+References:
+    Wang, W.-Y., Huang, Y.-C., Ik, T.-U., & Peng, W.-C. (2023).
+    ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for
+    Badminton Tactical Analysis. CoRR, abs/2306.04948.
 
 Author: ITI123 Project
 Date: January 2026
