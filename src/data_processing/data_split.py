@@ -210,61 +210,130 @@ def analyze_stratification(train_df, val_df, test_df):
 # SAVE SPLITS
 # =============================================================================
 
+def pad_or_truncate(features, target_length=75):
+    """Pad or truncate sequence to fixed length."""
+    num_frames = features.shape[0]
+    num_features = features.shape[1]
+
+    if num_frames == target_length:
+        return features
+    elif num_frames < target_length:
+        padding = np.zeros((target_length - num_frames, num_features))
+        return np.vstack([features, padding])
+    else:
+        start_idx = (num_frames - target_length) // 2
+        return features[start_idx:start_idx + target_length]
+
+
 def save_splits(train_df, val_df, test_df, features_dict):
     """
-    Save train/val/test splits to disk
+    Save train/val/test splits to disk with GLOBAL normalization.
 
-    Saves both metadata (CSV) and features (pickle) for each split
+    Uses raw features and applies normalization based on training set statistics.
+    This preserves class-distinguishing information.
 
     Args:
         train_df, val_df, test_df: Split DataFrames
         features_dict: Dictionary of features
     """
     print("=" * 70)
-    print("SAVING SPLITS")
+    print("SAVING SPLITS (with Global Normalization)")
     print("=" * 70)
     print()
 
     # Create output directory
     SPLITS_DIR.mkdir(parents=True, exist_ok=True)
 
-    splits = {
-        'train': train_df,
-        'val': val_df,
-        'test': test_df
+    label_map = {'Clear': 0, 'Smash': 1}
+
+    # =========================================================================
+    # STEP 1: Collect RAW features from training set for global normalization
+    # =========================================================================
+    print("Computing global normalization statistics from training set...")
+
+    X_train_raw = []
+    y_train = []
+    train_clip_names = []
+
+    for idx, row in train_df.iterrows():
+        clip_name = row['clip_name']
+        if clip_name in features_dict:
+            feature_data = features_dict[clip_name]
+
+            # Use RAW features (not pre-normalized)
+            raw_features = feature_data.get('raw_features', feature_data['features'])
+
+            # Pad/truncate to fixed length
+            fixed_features = pad_or_truncate(raw_features, target_length=75)
+
+            X_train_raw.append(fixed_features)
+            y_train.append(label_map[row['stroke_type_english']])
+            train_clip_names.append(clip_name)
+
+    X_train_raw = np.array(X_train_raw)
+    y_train = np.array(y_train)
+
+    # Calculate GLOBAL mean and std from training set
+    # Reshape to (all_frames, features) for statistics
+    all_train_features = X_train_raw.reshape(-1, X_train_raw.shape[-1])
+    global_mean = np.mean(all_train_features, axis=0)
+    global_std = np.std(all_train_features, axis=0) + 1e-8  # Avoid division by zero
+
+    print(f"  Global mean range: [{global_mean.min():.4f}, {global_mean.max():.4f}]")
+    print(f"  Global std range:  [{global_std.min():.4f}, {global_std.max():.4f}]")
+    print()
+
+    # Normalize training data
+    X_train = (X_train_raw - global_mean) / global_std
+
+    # Save normalization parameters
+    norm_params = {'mean': global_mean, 'std': global_std}
+    with open(SPLITS_DIR / 'normalization_params.pkl', 'wb') as f:
+        pickle.dump(norm_params, f)
+    print(f"  ✅ Normalization params saved")
+
+    # =========================================================================
+    # STEP 2: Process validation and test sets with same normalization
+    # =========================================================================
+    splits_data = {
+        'train': (train_df, X_train, y_train, train_clip_names),
     }
 
-    for split_name, split_df in splits.items():
+    # Process val and test
+    for split_name, split_df in [('val', val_df), ('test', test_df)]:
+        X_raw = []
+        y = []
+        clip_names = []
+
+        for idx, row in split_df.iterrows():
+            clip_name = row['clip_name']
+            if clip_name in features_dict:
+                feature_data = features_dict[clip_name]
+                raw_features = feature_data.get('raw_features', feature_data['features'])
+                fixed_features = pad_or_truncate(raw_features, target_length=75)
+
+                X_raw.append(fixed_features)
+                y.append(label_map[row['stroke_type_english']])
+                clip_names.append(clip_name)
+
+        X_raw = np.array(X_raw)
+        y = np.array(y)
+
+        # Apply GLOBAL normalization (from training set)
+        X = (X_raw - global_mean) / global_std
+
+        splits_data[split_name] = (split_df, X, y, clip_names)
+
+    # =========================================================================
+    # STEP 3: Save all splits
+    # =========================================================================
+    for split_name, (split_df, X, y, clip_names) in splits_data.items():
         print(f"Saving {split_name} split...")
 
         # Save metadata CSV
         metadata_file = SPLITS_DIR / f"{split_name}_metadata.csv"
         split_df.to_csv(metadata_file, index=False)
         print(f"  ✅ Metadata saved: {metadata_file}")
-
-        # Prepare features and labels
-        X = []  # Features
-        y = []  # Labels (0=Clear, 1=Smash)
-        clip_names = []
-
-        label_map = {'Clear': 0, 'Smash': 1}
-
-        for idx, row in split_df.iterrows():
-            clip_name = row['clip_name']
-            if clip_name in features_dict:
-                feature_data = features_dict[clip_name]
-
-                # Extract normalized, fixed-length features
-                X.append(feature_data['features'])
-
-                # Map stroke type to label
-                y.append(label_map[row['stroke_type_english']])
-
-                clip_names.append(clip_name)
-
-        # Convert to numpy arrays
-        X = np.array(X)
-        y = np.array(y)
 
         # Save features and labels
         data_file = SPLITS_DIR / f"{split_name}_data.pkl"
@@ -273,8 +342,7 @@ def save_splits(train_df, val_df, test_df, features_dict):
                 'X': X,  # Shape: (num_samples, sequence_length, num_features)
                 'y': y,  # Shape: (num_samples,)
                 'clip_names': clip_names,
-                'label_map': label_map,
-                'feature_names': feature_data['feature_names']  # Feature column names
+                'label_map': label_map
             }, f)
 
         print(f"  ✅ Data saved: {data_file}")
@@ -282,6 +350,17 @@ def save_splits(train_df, val_df, test_df, features_dict):
         print()
 
     print(f"✅ All splits saved to: {SPLITS_DIR}")
+    print()
+
+    # Verify class separation
+    print("Verifying class separation after global normalization...")
+    X_train_final = splits_data['train'][1]
+    y_train_final = splits_data['train'][2]
+    X_clear = X_train_final[y_train_final == 0]
+    X_smash = X_train_final[y_train_final == 1]
+    print(f"  Clear mean: {np.mean(X_clear):.4f}")
+    print(f"  Smash mean: {np.mean(X_smash):.4f}")
+    print(f"  Difference: {abs(np.mean(X_clear) - np.mean(X_smash)):.4f}")
     print()
 
 

@@ -106,18 +106,26 @@ def extract_biomechanical_features(pose_sequence):
     Extract biomechanical features from pose sequence
 
     Args:
-        pose_sequence: List of pose arrays, each (33, 3)
+        pose_sequence: List of pose arrays, each (33, 4) with [x, y, z, visibility]
+                       Some frames may be None (no detection)
 
     Returns:
         features: Array of shape (num_frames, num_features)
+        feature_names: List of feature names
     """
     features_list = []
+    num_features = 14  # Fixed number of features per frame
 
     for frame_idx, pose in enumerate(pose_sequence):
         if pose is None:
             # If pose is missing, use zeros
-            features_list.append(np.zeros(50))  # Placeholder for feature dimension
+            features_list.append(np.zeros(num_features))
             continue
+
+        # Handle both (33, 4) and (33, 3) formats
+        # Extract only x, y, z coordinates (first 3 columns)
+        if pose.shape[1] == 4:
+            pose = pose[:, :3]  # Extract x, y, z only
 
         frame_features = {}
 
@@ -204,7 +212,8 @@ def extract_biomechanical_features(pose_sequence):
         feature_vector = np.array(list(frame_features.values()))
         features_list.append(feature_vector)
 
-    features_array = np.array(features_list)
+    # Convert list to array - all elements should be same shape now
+    features_array = np.vstack(features_list)
 
     # === TEMPORAL FEATURES (velocities) ===
 
