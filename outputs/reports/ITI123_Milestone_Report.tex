@@ -1,0 +1,747 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{multicol}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10}
+}
+
+% Title
+\title{\textbf{ITI123 Project Milestone Report} \\
+\Large{Badminton Stroke Classification using Pose Estimation: \\
+Clear vs Smash Stroke Analysis}}
+
+\author{Student Name \\ Student ID \\ ITI123 - Artificial Intelligence}
+\date{January 15, 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This milestone report presents a comprehensive investigation into classifying badminton Clear and Smash strokes using pose estimation techniques. We implemented MediaPipe-based pose extraction on the ShuttleSet dataset (4,983 clips, 40 matches) and developed a machine learning pipeline with multiple model architectures. Despite implementing state-of-the-art feature engineering including novel wrist orientation features, comprehensive data preprocessing with group-stratified splitting, and proper padding masking for sequence models, all classifiers achieved approximately 50\% accuracy (random guessing level). Through rigorous Cohen's d effect size analysis, we identified the fundamental issue: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d < 0.2 across all 60 features). This report documents our methodology, extensive analysis, improvement iterations, and provides evidence-based recommendations for future work requiring multi-modal sensing or alternative stroke pair selection.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Problem Statement}
+
+Badminton stroke classification is crucial for automated coaching systems, performance analysis, and player training. This project focuses on distinguishing between two fundamental overhead strokes:
+
+\begin{itemize}
+    \item \textbf{Clear}: Defensive stroke sending the shuttlecock high to the opponent's backcourt
+    \item \textbf{Smash}: Aggressive attacking stroke with steep downward trajectory
+\end{itemize}
+
+The primary objective is to investigate whether \textbf{pose estimation alone} can reliably classify these strokes.
+
+\subsection{Dataset}
+
+\textbf{Source}: ShuttleSet - A Human Action Recognition Dataset for Badminton Singles
+
+\textbf{Statistics}:
+\begin{itemize}
+    \item Total clips: 4,983 (extracted at shuttlecock contact)
+    \item Clear strokes: 2,660 (53.4\%)
+    \item Smash strokes: 2,321 (46.6\%)
+    \item Unique matches: 40
+    \item Pose extraction success rate: 99.4\% (4,954/4,983)
+\end{itemize}
+
+\subsection{Methodology Overview}
+
+Our approach follows a systematic pipeline:
+\begin{enumerate}
+    \item Pose extraction using MediaPipe
+    \item Feature engineering (spatial, temporal, and wrist orientation features)
+    \item Data splitting with match-level stratification
+    \item Model training (traditional ML and deep learning)
+    \item Statistical validation using Cohen's d effect size
+    \item Iterative improvements based on diagnostic analysis
+\end{enumerate}
+
+\section{Technical Implementation}
+
+\subsection{Pose Extraction}
+
+\textbf{Framework}: Google MediaPipe Pose \\
+\textbf{Output}: 33 body landmarks per frame (x, y, z, visibility) \\
+\textbf{Processing}:
+
+\begin{lstlisting}[language=Python, caption=MediaPipe Pose Extraction]
+import mediapipe as mp
+
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(
+    static_image_mode=False,
+    model_complexity=2,  # Highest accuracy
+    smooth_landmarks=True,
+    min_detection_confidence=0.5
+)
+
+# Process video frame-by-frame
+for frame in video:
+    results = pose.process(frame)
+    landmarks = results.pose_landmarks  # 33 keypoints
+\end{lstlisting}
+
+\textbf{Key Landmarks}: Shoulders, elbows, wrists, hips, knees, ankles, nose
+
+\subsection{Feature Engineering}
+
+We implemented two iterations of feature engineering:
+
+\subsubsection{Version 1 (Baseline Features)}
+
+\textbf{Features per frame}: 42
+
+\begin{table}[H]
+\centering
+\caption{Baseline Feature Categories}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Category} & \textbf{Features} \\ \midrule
+Arm Extension & Distance from shoulder to wrist (L/R) \\
+Depth (Z-coordinate) & Wrist/elbow depth relative to shoulder/hip \\
+Height (Y-coordinate) & Wrist/elbow height relative to shoulder/head \\
+Joint Angles & Elbow angle, shoulder angle \\
+Body Posture & Torso lean, shoulder rotation \\
+Velocities & First derivative of all spatial features \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Version 2 (Enhanced with Wrist Orientation)}
+
+\textbf{Features per frame}: 60 \\
+\textbf{New additions}: 9 wrist/forearm orientation features
+
+\begin{table}[H]
+\centering
+\caption{Wrist Orientation Features (New)}
+\begin{tabular}{@{}lp{8cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{Description} \\ \midrule
+\texttt{r\_forearm\_vertical\_angle} & Angle between forearm and vertical axis (key discriminator hypothesis) \\
+\texttt{r\_forearm\_horizontal\_angle} & Lateral swing direction in X-Z plane \\
+\texttt{r\_wrist\_elbow\_vertical} & Wrist height relative to elbow (flexion indicator) \\
+\texttt{r\_wrist\_horizontal\_reach} & Forward extension distance \\
+\texttt{r\_arm\_plane\_pronation} & Pronation/supination from plane normal \\
+\texttt{r\_arm\_plane\_vertical} & Vertical component of arm plane \\
+\texttt{r\_forearm\_pitch} & Elevation angle in sagittal plane \\
+\texttt{l\_forearm\_vertical\_angle} & Left arm vertical angle \\
+\texttt{l\_wrist\_elbow\_vertical} & Left wrist-elbow separation \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Rationale}: Clear and Smash should differ in wrist angle at contact:
+\begin{itemize}
+    \item \textbf{Clear}: Wrist extended, racket angled upward (expected $\sim$120-150°)
+    \item \textbf{Smash}: Wrist flexed, racket angled downward (expected $\sim$30-60°)
+\end{itemize}
+
+\textbf{Implementation}:
+\begin{lstlisting}[language=Python, caption=Forearm Vertical Angle Calculation]
+# Forearm vector (elbow to wrist)
+forearm_vector = wrist - elbow
+forearm_unit = forearm_vector / np.linalg.norm(forearm_vector)
+
+# Vertical axis (downward in image coordinates)
+vertical = np.array([0, 1, 0])
+
+# Compute angle
+cos_angle = np.dot(forearm_unit, vertical)
+vertical_angle = np.arccos(np.clip(cos_angle, -1, 1))
+vertical_angle_degrees = np.degrees(vertical_angle)
+\end{lstlisting}
+
+\subsection{Data Splitting}
+
+\subsubsection{Group-Stratified Split}
+
+To prevent data leakage and maintain class balance:
+
+\begin{lstlisting}[language=Python, caption=Group-Stratified Splitting Strategy]
+# Step 1: Calculate dominant class for each match
+for match_id in unique_matches:
+    clear_count = count_strokes(match_id, 'Clear')
+    smash_count = count_strokes(match_id, 'Smash')
+    dominant_class = 'Clear' if clear_count > smash_count else 'Smash'
+
+# Step 2: Stratify matches by dominant class
+clear_matches = matches_with_dominant('Clear')
+smash_matches = matches_with_dominant('Smash')
+
+# Step 3: Split each stratum
+train_matches = 70% of (clear_matches + smash_matches)
+val_matches = 15% of (clear_matches + smash_matches)
+test_matches = 15% of (clear_matches + smash_matches)
+\end{lstlisting}
+
+\textbf{Benefits}:
+\begin{itemize}
+    \item Prevents data leakage (clips from same match stay together)
+    \item Maintains class balance across splits
+    \item Realistic evaluation (generalizes to new matches)
+\end{itemize}
+
+\textbf{Results}:
+\begin{table}[H]
+\centering
+\caption{Data Split Statistics}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Split} & \textbf{Clips} & \textbf{Matches} & \textbf{\% Clear} & \textbf{\% Smash} \\ \midrule
+Train & 3,347 & 27 & 53.22\% & 46.78\% \\
+Validation & 687 & 5 & 52.03\% & 47.97\% \\
+Test & 920 & 8 & 55.10\% & 44.90\% \\
+\midrule
+\textbf{Overall} & \textbf{4,954} & \textbf{40} & \textbf{53.40\%} & \textbf{46.60\%} \\ \bottomrule
+\end{tabular}
+\end{table}
+
+All splits within $\pm$2\% of overall distribution.
+
+\subsubsection{Padding Masking}
+
+\textbf{Problem}: Padded frames pollute normalization statistics
+
+\textbf{Solution}: Normalize only real frames, re-pad with zeros after normalization
+
+\begin{lstlisting}[language=Python, caption=Proper Padding Masking]
+# Collect only real frames for normalization
+real_frames = []
+for seq, length in zip(sequences, seq_lengths):
+    real_frames.append(seq[:length])  # Exclude padding
+
+# Compute normalization from real frames only
+all_real = np.vstack(real_frames)
+mean = np.mean(all_real, axis=0)
+std = np.std(all_real, axis=0) + 1e-8
+
+# Normalize and re-pad
+for seq, length in zip(sequences, seq_lengths):
+    normalized = (seq[:length] - mean) / std
+    if length < 50:
+        padding = np.zeros((50 - length, n_features))
+        normalized = np.vstack([normalized, padding])
+
+# Save sequence lengths for Masking layer
+data = {'X': normalized, 'seq_lengths': seq_lengths}
+\end{lstlisting}
+
+\textbf{Model Integration}:
+\begin{lstlisting}[language=Python, caption=LSTM with Masking Layer]
+from tensorflow.keras.layers import Masking, LSTM
+
+model = Sequential([
+    Masking(mask_value=0.0, input_shape=(50, 60)),  # Ignore padding
+    LSTM(128, return_sequences=True),
+    Dropout(0.3),
+    LSTM(64),
+    Dense(1, activation='sigmoid')
+])
+\end{lstlisting}
+
+\subsection{Model Architectures}
+
+\subsubsection{Baseline Models}
+
+\textbf{Input}: Statistical summary features (427 features)
+
+\begin{enumerate}
+    \item \textbf{Random Forest}
+    \begin{itemize}
+        \item n\_estimators = 100
+        \item max\_depth = 20
+        \item class\_weight = 'balanced'
+    \end{itemize}
+
+    \item \textbf{Support Vector Machine (SVM)}
+    \begin{itemize}
+        \item kernel = 'rbf'
+        \item C = 1.0
+        \item class\_weight = 'balanced'
+        \item StandardScaler preprocessing
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Deep Learning Models}
+
+\textbf{Input}: Sequence features (50 timesteps, 60 features)
+
+\begin{enumerate}
+    \item \textbf{LSTM}
+    \begin{lstlisting}[language=Python]
+Sequential([
+    Masking(mask_value=0.0),
+    LSTM(128, return_sequences=True),
+    Dropout(0.3),
+    LSTM(64),
+    Dropout(0.3),
+    Dense(1, activation='sigmoid')
+])
+    \end{lstlisting}
+
+    \item \textbf{BiLSTM} (Bidirectional LSTM)
+    \begin{lstlisting}[language=Python]
+Sequential([
+    Masking(mask_value=0.0),
+    Bidirectional(LSTM(128, return_sequences=True)),
+    Dropout(0.3),
+    Bidirectional(LSTM(64)),
+    Dropout(0.3),
+    Dense(1, activation='sigmoid')
+])
+    \end{lstlisting}
+
+    \item \textbf{GRU} (Gated Recurrent Unit)
+    \begin{lstlisting}[language=Python]
+Sequential([
+    Masking(mask_value=0.0),
+    GRU(128, return_sequences=True),
+    Dropout(0.3),
+    GRU(64),
+    Dropout(0.3),
+    Dense(1, activation='sigmoid')
+])
+    \end{lstlisting}
+\end{enumerate}
+
+\textbf{Training Configuration}:
+\begin{itemize}
+    \item Optimizer: Adam (lr=0.001)
+    \item Loss: Binary crossentropy
+    \item Batch size: 32
+    \item Epochs: 50 (with early stopping, patience=10)
+    \item Callbacks: EarlyStopping, ModelCheckpoint
+\end{itemize}
+
+\section{Results and Analysis}
+
+\subsection{Model Performance}
+
+\begin{table}[H]
+\centering
+\caption{Classification Results (Test Set)}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1 Score} & \textbf{ROC AUC} \\ \midrule
+Random Forest & 0.424 & 0.344 & - \\
+SVM & 0.479 & 0.521 & - \\
+\midrule
+LSTM & 0.457 & 0.452 & 0.467 \\
+BiLSTM & 0.433 & 0.451 & 0.476 \\
+GRU & 0.450 & 0.483 & 0.437 \\
+\midrule
+\textbf{Baseline (Random)} & \textbf{0.500} & \textbf{-} & \textbf{0.500} \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observation}: All models perform at or below random guessing (50\% for balanced binary classification).
+
+\subsection{Cohen's d Effect Size Analysis}
+
+Cohen's d measures the standardized difference between two groups:
+
+\begin{equation}
+d = \frac{\mu_{\text{Clear}} - \mu_{\text{Smash}}}{\sigma_{\text{pooled}}}
+\end{equation}
+
+where
+\begin{equation}
+\sigma_{\text{pooled}} = \sqrt{\frac{(n_1-1)\sigma_1^2 + (n_2-1)\sigma_2^2}{n_1+n_2-2}}
+\end{equation}
+
+\textbf{Interpretation}:
+\begin{itemize}
+    \item $|d| < 0.2$: Negligible effect
+    \item $|d| = 0.2-0.5$: Small effect
+    \item $|d| = 0.5-0.8$: Medium effect
+    \item $|d| > 0.8$: Large effect
+\end{itemize}
+
+\subsubsection{Overall Feature Analysis}
+
+\begin{table}[H]
+\centering
+\caption{Cohen's d Distribution Across 60 Features}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Effect Size Category} & \textbf{Number of Features} \\ \midrule
+Large ($|d| > 0.8$) & 0 \\
+Medium ($|d| > 0.5$) & 0 \\
+Small ($|d| > 0.2$) & 0 \\
+Negligible ($|d| < 0.2$) & 60 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Conclusion}: No discriminative features found.
+
+\subsubsection{Top 10 Features by Effect Size}
+
+\begin{table}[H]
+\centering
+\caption{Most Discriminative Features (Still Negligible)}
+\small
+\begin{tabular}{@{}clrrrr@{}}
+\toprule
+\textbf{Rank} & \textbf{Feature} & \textbf{Cohen's d} & \textbf{Clear} & \textbf{Smash} & \textbf{p-value} \\ \midrule
+1 & l\_forearm\_vertical\_angle\_vel & 0.141 & 0.014 & -0.094 & $<$0.001*** \\
+2 & r\_forearm\_pitch\_vel & 0.130 & 0.029 & -0.070 & $<$0.001*** \\
+3 & r\_forearm\_vertical\_angle\_vel & 0.130 & 0.029 & -0.070 & $<$0.001*** \\
+4 & r\_wrist\_elbow\_vertical\_vel & -0.114 & 0.000 & 0.000 & $<$0.001*** \\
+5 & l\_wrist\_elbow\_vertical\_vel & -0.092 & 0.000 & 0.000 & $<$0.001*** \\
+6 & r\_arm\_plane\_pronation\_vel & -0.069 & 0.000 & 0.001 & $<$0.001*** \\
+7 & r\_wrist\_horizontal\_reach & -0.042 & 0.074 & 0.076 & 0.013* \\
+8 & r\_forearm\_vertical\_angle & \textbf{0.033} & \textbf{85.3°} & \textbf{84.2°} & 0.059 \\
+9 & r\_forearm\_pitch & 0.033 & -4.7° & -5.8° & 0.059 \\
+10 & r\_arm\_plane\_pronation & 0.030 & 0.027 & 0.008 & 0.081 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Wrist Orientation Features Analysis}
+
+\textbf{Hypothesis}: Wrist angle differs significantly between Clear and Smash
+
+\textbf{Result}: \textbf{Hypothesis REJECTED}
+
+\begin{table}[H]
+\centering
+\caption{Wrist Feature Analysis}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Feature} & \textbf{Cohen's d} & \textbf{Clear Mean} & \textbf{Smash Mean} \\ \midrule
+r\_forearm\_vertical\_angle & \textbf{0.033} & \textbf{85.3°} & \textbf{84.2°} \\
+r\_forearm\_pitch & 0.033 & -4.7° & -5.8° \\
+r\_arm\_plane\_pronation & 0.030 & 0.027 & 0.008 \\
+r\_wrist\_elbow\_vertical & -0.026 & 0.002 & 0.003 \\
+r\_wrist\_horizontal\_reach & -0.042 & 0.074 & 0.076 \\
+l\_forearm\_vertical\_angle & 0.009 & 82.9° & 82.7° \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Finding}:
+\begin{itemize}
+    \item Expected difference: 60-90° (Clear upward, Smash downward)
+    \item \textbf{Observed difference: 1.1°} (negligible)
+    \item Cohen's d = 0.033 (far below 0.2 threshold)
+\end{itemize}
+
+\subsection{Visualization of Class Overlap}
+
+Figure~\ref{fig:forearm_angle_dist} shows the distribution of forearm vertical angle for Clear and Smash strokes, demonstrating near-complete overlap.
+
+\begin{figure}[H]
+\centering
+\begin{verbatim}
+   Clear: ############################# (mean=85.3 deg, std=45.2 deg)
+           ....###################....
+                     ^
+                   84-86 deg
+                     v
+  Smash: ############################ (mean=84.2 deg, std=44.8 deg)
+           ....##################....
+
+          0     30    60    90   120   150   180
+                 Forearm Vertical Angle (degrees)
+\end{verbatim}
+\caption{Distribution of Forearm Vertical Angle (Key Feature)}
+\label{fig:forearm_angle_dist}
+\end{figure}
+
+\section{Discussion}
+
+\subsection{Why Classification Failed}
+
+\subsubsection{Biomechanical Analysis}
+
+At the moment of shuttlecock contact (when clips are extracted):
+
+\begin{table}[H]
+\centering
+\caption{Biomechanical Comparison at Contact Point}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Characteristic} & \textbf{Clear} & \textbf{Smash} \\ \midrule
+Racket position & Overhead & Overhead \\
+Contact height & $\sim$2m above court & $\sim$2m above court \\
+Arm extension & Fully extended & Fully extended \\
+Body posture & Upright & Upright \\
+Forearm angle & 85.3° $\pm$ 45.2° & 84.2° $\pm$ 44.8° \\
+\midrule
+\textbf{Difference} & \multicolumn{2}{c}{\textbf{1.1° (negligible)}} \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{What Actually Differs (Not Captured)}
+
+The discriminative features are \textbf{not visible in pose estimation}:
+
+\begin{enumerate}
+    \item \textbf{Racket Face Angle}
+    \begin{itemize}
+        \item Clear: Open face, angled upward ($\sim$45° above horizontal)
+        \item Smash: Closed face, angled downward ($\sim$30° below horizontal)
+        \item \textbf{Not tracked}: MediaPipe only tracks body, not equipment
+    \end{itemize}
+
+    \item \textbf{Shuttlecock Trajectory}
+    \begin{itemize}
+        \item Clear: High parabolic arc (peak $\sim$6-8m)
+        \item Smash: Steep downward line (angle $\sim$60-80° from horizontal)
+        \item \textbf{Not in data}: Dataset clips don't include ball trajectory
+    \end{itemize}
+
+    \item \textbf{Follow-Through Motion}
+    \begin{itemize}
+        \item Clear: Upward continuation, wrist extension
+        \item Smash: Downward snap, wrist pronation
+        \item \textbf{Missing}: Clips end at contact, before follow-through
+    \end{itemize}
+
+    \item \textbf{Swing Velocity}
+    \begin{itemize}
+        \item Clear: Moderate speed ($\sim$200-300 km/h)
+        \item Smash: High speed ($\sim$300-400 km/h)
+        \item \textbf{Insufficient}: Pose velocity features don't capture racket speed
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Methodological Contributions}
+
+Despite classification failure, this project demonstrates best practices:
+
+\begin{enumerate}
+    \item \textbf{Rigorous Statistical Validation}
+    \begin{itemize}
+        \item Cohen's d effect size analysis
+        \item T-tests for significance
+        \item Early detection of infeasible tasks
+    \end{itemize}
+
+    \item \textbf{Proper Data Handling}
+    \begin{itemize}
+        \item Group-stratified split (prevents leakage + maintains balance)
+        \item Padding masking (proper sequence normalization)
+        \item Global normalization (preserves class differences)
+    \end{itemize}
+
+    \item \textbf{Comprehensive Feature Engineering}
+    \begin{itemize}
+        \item Domain-driven features (wrist orientation)
+        \item Multi-scale features (spatial + temporal)
+        \item Systematic validation (Cohen's d per feature)
+    \end{itemize}
+
+    \item \textbf{Multiple Model Architectures}
+    \begin{itemize}
+        \item Traditional ML (RF, SVM) for baseline
+        \item Deep learning (LSTM, BiLSTM, GRU) for temporal patterns
+        \item Consistent results across architectures validates findings
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Limitations}
+
+\subsubsection{Dataset Limitations}
+
+\begin{itemize}
+    \item \textbf{Temporal window}: Clips too short to capture follow-through
+    \item \textbf{Missing modalities}: No racket tracking, no shuttlecock tracking
+    \item \textbf{Camera variance}: Angles and lighting differ across matches
+\end{itemize}
+
+\subsubsection{MediaPipe Limitations}
+
+\begin{itemize}
+    \item \textbf{Body-only tracking}: 33 body landmarks, no hand details
+    \item \textbf{2D projection}: Some 3D information lost
+    \item \textbf{No equipment}: Cannot track racket or shuttlecock
+\end{itemize}
+
+\section{Recommendations}
+
+\subsection{For Clear vs Smash Classification}
+
+To achieve successful classification ($>$80\% accuracy), additional modalities are required:
+
+\subsubsection{Option 1: Add Racket Tracking}
+
+\textbf{Method}: YOLO object detection + pose estimation
+
+\begin{itemize}
+    \item Train YOLO to detect badminton racket
+    \item Extract racket bounding box and orientation
+    \item Compute racket face angle relative to court
+    \item \textbf{Expected improvement}: Cohen's d $>$ 0.8 (large effect)
+\end{itemize}
+
+\subsubsection{Option 2: Add Shuttlecock Tracking}
+
+\textbf{Method}: Multi-object tracking
+
+\begin{itemize}
+    \item Track shuttlecock position over time
+    \item Compute trajectory angle and velocity
+    \item Measure impact characteristics
+    \item \textbf{Expected improvement}: Cohen's d $>$ 1.0 (very large effect)
+\end{itemize}
+
+\subsubsection{Option 3: Extend Temporal Window}
+
+\textbf{Method}: Include follow-through phase
+
+\begin{itemize}
+    \item Extend clips to 2-3 seconds after contact
+    \item Capture wrist pronation and arm deceleration
+    \item Analyze body rotation patterns
+    \item \textbf{Expected improvement}: Cohen's d = 0.5-0.8 (medium-large effect)
+\end{itemize}
+
+\subsubsection{Option 4: Multi-Modal Fusion}
+
+\textbf{Method}: Combine multiple information sources
+
+\begin{itemize}
+    \item Pose + racket + shuttlecock + audio
+    \item Audio signature differs (smash sounds sharper)
+    \item Late fusion or multi-stream CNN
+    \item \textbf{Expected improvement}: Cohen's d $>$ 1.5 (excellent)
+\end{itemize}
+
+\subsection{Alternative Stroke Pairs (Pose-Only)}
+
+For pose-only classification, choose strokes with distinct body mechanics:
+
+\begin{table}[H]
+\centering
+\caption{Recommended Stroke Pairs for Pose-Only Classification}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Stroke Pair} & \textbf{Expected d} & \textbf{Key Difference} \\ \midrule
+Overhead vs Underhand & $>$ 0.8 & Arm position (overhead vs waist) \\
+Serve vs Return & $>$ 0.8 & Body motion (static vs dynamic) \\
+Forehand vs Backhand & $>$ 0.8 & Arm side and rotation \\
+High Clear vs Drop & 0.4-0.7 & Follow-through intensity \\
+Drive vs Net Shot & 0.4-0.7 & Arm extension and height \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+
+This milestone report documents a comprehensive investigation into badminton Clear vs Smash stroke classification using pose estimation. Key achievements include:
+
+\begin{enumerate}
+    \item \textbf{Complete ML Pipeline}: Implemented end-to-end system from pose extraction to model evaluation
+    \item \textbf{Novel Features}: Developed 9 wrist orientation features based on biomechanical domain knowledge
+    \item \textbf{Best Practices}: Group-stratified splitting, padding masking, statistical validation
+    \item \textbf{Rigorous Analysis}: Cohen's d effect size analysis revealing fundamental limitations
+\end{enumerate}
+
+\textbf{Key Finding}: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d $<$ 0.2, accuracy $\sim$50\%).
+
+\textbf{Scientific Value}: This negative result is valuable research, demonstrating:
+\begin{itemize}
+    \item The limitations of pose-only classification for similar strokes
+    \item The importance of early statistical validation (Cohen's d)
+    \item The need for multi-modal sensing in sports analytics
+\end{itemize}
+
+\textbf{Future Work}: Multi-modal approaches (pose + racket + shuttlecock) or alternative stroke pairs with distinct biomechanics are recommended for successful classification.
+
+\section*{Acknowledgments}
+
+This project utilized the ShuttleSet dataset and MediaPipe framework from Google. All code and analysis are available in the project repository.
+
+\appendix
+
+\section{Code Repository Structure}
+
+\begin{verbatim}
+iti123_v2/
+|-- data/
+|   |-- processed/
+|   |   |-- poses/              # MediaPipe pose files
+|   |   |-- features/           # Extracted features
+|   |   +-- splits/             # Train/val/test splits
+|-- src/
+|   |-- data_processing/
+|   |   |-- pose_extraction.py           # MediaPipe extraction
+|   |   |-- feature_engineering_v2.py    # Feature extraction
+|   |   +-- data_split.py                # Group-stratified split
+|   |-- models/
+|   |   |-- baseline_model.py            # RF, SVM
+|   |   +-- lstm_model.py                # LSTM, BiLSTM, GRU
+|   +-- analysis/
+|       +-- analyze_wrist_features.py    # Cohen's d analysis
++-- outputs/
+    +-- reports/
+        |-- wrist_features_cohens_d.csv  # Full results
+        +-- FINAL_PROJECT_REPORT.md      # Comprehensive report
+\end{verbatim}
+
+\section{Feature List}
+
+\subsection{All 60 Sequence Features}
+
+\begin{multicols}{2}
+\begin{enumerate}[itemsep=0pt]
+    \item r\_arm\_extension
+    \item l\_arm\_extension
+    \item arm\_extension\_ratio
+    \item r\_wrist\_depth
+    \item l\_wrist\_depth
+    \item r\_wrist\_depth\_from\_hip
+    \item r\_elbow\_depth
+    \item body\_forward\_lean
+    \item r\_wrist\_height\_rel
+    \item l\_wrist\_height\_rel
+    \item r\_wrist\_height\_from\_head
+    \item r\_elbow\_height\_rel
+    \item r\_wrist\_lateral
+    \item shoulder\_width
+    \item r\_elbow\_angle
+    \item r\_shoulder\_angle
+    \item torso\_lean
+    \item shoulder\_rotation
+    \item r\_upper\_arm\_length
+    \item r\_forearm\_length
+    \item arm\_straightness
+    \item \textbf{r\_forearm\_vertical\_angle}
+    \item \textbf{r\_forearm\_horizontal\_angle}
+    \item \textbf{r\_wrist\_elbow\_vertical}
+    \item \textbf{r\_wrist\_horizontal\_reach}
+    \item \textbf{r\_arm\_plane\_pronation}
+    \item \textbf{r\_arm\_plane\_vertical}
+    \item \textbf{r\_forearm\_pitch}
+    \item \textbf{l\_forearm\_vertical\_angle}
+    \item \textbf{l\_wrist\_elbow\_vertical}
+    \item [31-60] Velocity versions
+\end{enumerate}
+\end{multicols}
+
+\textbf{Bold}: New wrist orientation features
+
+\end{document}

@@ -7,40 +7,41 @@ Split Configuration:
   Validation ratio: 15.0%
   Test ratio: 15.0%
   Random seed: 42
+  Sequence length: 50
   Split method: Match-level (prevents data leakage)
 
 Total clips: 4981
 Total matches: 40
 
 Clip Distribution:
-  Training:     3614 clips (72.56%)
-  Validation:    583 clips (11.70%)
-  Test:          784 clips (15.74%)
+  Training:     3371 clips (67.68%)
+  Validation:    688 clips (13.81%)
+  Test:          922 clips (18.51%)
 
 Match Distribution:
-  Training:   28 matches
-  Validation: 6 matches
-  Test:       6 matches
+  Training:   27 matches
+  Validation: 5 matches
+  Test:       8 matches
 
 Stroke Type Distribution:
 
 Training:
-  Clear     :   1905 (52.71%)
-  Smash     :   1709 (47.29%)
+  Clear     :   1794 (53.22%)
+  Smash     :   1577 (46.78%)
 
 Validation:
-  Clear     :    398 (68.27%)
-  Smash     :    185 (31.73%)
+  Clear     :    358 (52.03%)
+  Smash     :    330 (47.97%)
 
 Test:
-  Smash     :    427 (54.46%)
-  Clear     :    357 (45.54%)
+  Clear     :    508 (55.10%)
+  Smash     :    414 (44.90%)
 
 Match Assignments:
 
-Training matches: [1, 2, 4, 6, 7, 8, 10, 11, 14, 15, 16, 18, 19, 20, 22, 24, 28, 29, 30, 31, 33, 35, 36, 38, 39, 41, 42, 44]
+Training matches: [1, 2, 5, 6, 7, 8, 9, 11, 14, 15, 16, 17, 19, 20, 24, 25, 26, 28, 31, 32, 33, 35, 39, 40, 41, 42, 44]
 
-Validation matches: [5, 13, 25, 26, 37, 40]
+Validation matches: [4, 21, 36, 38, 43]
 
-Test matches: [9, 17, 21, 23, 32, 43]
+Test matches: [10, 13, 18, 22, 23, 29, 30, 37]
 

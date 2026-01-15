@@ -36,7 +36,7 @@ import joblib
 # PATH CONFIGURATION
 # =============================================================================
 BASE_DIR = Path(__file__).resolve().parents[2]
-SPLITS_DIR = BASE_DIR / "data" / "processed" / "splits"
+SPLITS_DIR = BASE_DIR / "data" / "processed" / "splits"  # Original MediaPipe splits
 MODELS_DIR = BASE_DIR / "models" / "saved"
 REPORTS_DIR = BASE_DIR / "outputs" / "reports"
 VIZ_DIR = BASE_DIR / "outputs" / "visualizations"
@@ -53,7 +53,7 @@ def load_data():
     Load train/val/test splits.
 
     Returns:
-        X_train, y_train, X_val, y_val, X_test, y_test
+        X_train_seq, X_train_stat, y_train, X_val_seq, X_val_stat, y_val, X_test_seq, X_test_stat, y_test
     """
     print("Loading data splits...")
 
@@ -69,16 +69,22 @@ def load_data():
     with open(SPLITS_DIR / "test_data.pkl", 'rb') as f:
         test_data = pickle.load(f)
 
-    X_train, y_train = train_data['X'], train_data['y']
-    X_val, y_val = val_data['X'], val_data['y']
-    X_test, y_test = test_data['X'], test_data['y']
+    # Sequence features (for LSTM)
+    X_train_seq, y_train = train_data['X'], train_data['y']
+    X_val_seq, y_val = val_data['X'], val_data['y']
+    X_test_seq, y_test = test_data['X'], test_data['y']
 
-    print(f"  Train: {X_train.shape}, {y_train.shape}")
-    print(f"  Val:   {X_val.shape}, {y_val.shape}")
-    print(f"  Test:  {X_test.shape}, {y_test.shape}")
+    # Statistical features (for baseline models) - use X_stat if available
+    X_train_stat = train_data.get('X_stat', None)
+    X_val_stat = val_data.get('X_stat', None)
+    X_test_stat = test_data.get('X_stat', None)
+
+    print(f"  Train: seq={X_train_seq.shape}, stat={X_train_stat.shape if X_train_stat is not None else 'N/A'}, y={y_train.shape}")
+    print(f"  Val:   seq={X_val_seq.shape}, stat={X_val_stat.shape if X_val_stat is not None else 'N/A'}, y={y_val.shape}")
+    print(f"  Test:  seq={X_test_seq.shape}, stat={X_test_stat.shape if X_test_stat is not None else 'N/A'}, y={y_test.shape}")
     print()
 
-    return X_train, y_train, X_val, y_val, X_test, y_test
+    return X_train_seq, X_train_stat, y_train, X_val_seq, X_val_stat, y_val, X_test_seq, X_test_stat, y_test
 
 
 def flatten_sequences(X):
@@ -374,22 +380,43 @@ def main():
     print("\n")
 
     # Load data
-    X_train, y_train, X_val, y_val, X_test, y_test = load_data()
+    X_train_seq, X_train_stat, y_train, X_val_seq, X_val_stat, y_val, X_test_seq, X_test_stat, y_test = load_data()
 
-    # Flatten sequences for traditional ML
+    # Prepare features for traditional ML
     print("Preparing features...")
-    X_train_flat, X_train_stats = flatten_sequences(X_train)
-    X_val_flat, X_val_stats = flatten_sequences(X_val)
-    X_test_flat, X_test_stats = flatten_sequences(X_test)
 
-    print(f"  Flattened shape: {X_train_flat.shape}")
-    print(f"  Statistical features shape: {X_train_stats.shape}")
+    # Load raw statistical features (better for traditional ML with built-in scaling)
+    with open(SPLITS_DIR / "train_data.pkl", 'rb') as f:
+        train_data = pickle.load(f)
+    with open(SPLITS_DIR / "val_data.pkl", 'rb') as f:
+        val_data = pickle.load(f)
+    with open(SPLITS_DIR / "test_data.pkl", 'rb') as f:
+        test_data = pickle.load(f)
+
+    # Use raw statistical features if available (better class separation)
+    X_train_raw = train_data.get('X_stat_raw', None)
+    X_val_raw = val_data.get('X_stat_raw', None)
+    X_test_raw = test_data.get('X_stat_raw', None)
+
+    if X_train_raw is not None:
+        print("  Using RAW statistical features (V2 format)")
+        X_train_use = X_train_raw
+        X_val_use = X_val_raw
+        X_test_use = X_test_raw
+    elif X_train_stat is not None:
+        print("  Using normalized statistical features (V2 format)")
+        X_train_use = X_train_stat
+        X_val_use = X_val_stat
+        X_test_use = X_test_stat
+    else:
+        # Fall back to computing from sequences (V1 format)
+        print("  Computing statistical features from sequences (V1 format)")
+        _, X_train_use = flatten_sequences(X_train_seq)
+        _, X_val_use = flatten_sequences(X_val_seq)
+        _, X_test_use = flatten_sequences(X_test_seq)
+
+    print(f"  Statistical features shape: {X_train_use.shape}")
     print()
-
-    # Use statistical features (more compact, often better for traditional ML)
-    X_train_use = X_train_stats
-    X_val_use = X_val_stats
-    X_test_use = X_test_stats
 
     # Train models
     rf_model, rf_val_metrics = train_random_forest(X_train_use, y_train, X_val_use, y_val)
