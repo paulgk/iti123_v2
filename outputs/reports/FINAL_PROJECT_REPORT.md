@@ -1,10 +1,11 @@
 # ITI123 Final Project Report
 ## Badminton Stroke Classification: Clear vs Smash using Pose Estimation
 
-**Date**: January 15, 2026
+**Date**: January 16, 2026 (Updated)
 **Author**: ITI123 Project Team
-**Dataset**: ShuttleSet Badminton Dataset
-**Total Clips**: 4,983 (2,660 Clear, 2,321 Smash)
+**Dataset**: ShuttleSet Badminton Dataset (Forehand Only)
+**Total Clips**: 4,682 (2,371 Clear, 2,311 Smash)
+**Filtered**: 301 backhand shots removed (291 Clear, 10 Smash)
 
 ---
 
@@ -30,8 +31,11 @@ The fundamental issue is not the model or features, but that **Clear and Smash s
 ### 1.1 Initial Approach (Baseline)
 
 **Dataset**:
-- 4,983 clips from 40 matches
-- MediaPipe pose extraction (90.9% success rate)
+- **4,682 forehand-only clips** from 40 matches (301 backhand shots filtered)
+  - Original: 4,983 clips (included mixed forehand/backhand)
+  - Filtered: Removed 291 backhand Clears (10.9%) and 10 backhand Smashes (0.4%)
+  - Final: 2,371 Clear, 2,311 Smash (forehand only)
+- MediaPipe pose extraction (99.4% success rate on filtered data)
 - 33 body landmarks per frame
 
 **Initial Features** (V1):

@@ -919,5 +919,70 @@ def main():
     print()
 
 
+# =============================================================================
+# POSE EXTRACTOR CLASS (For integration with other scripts)
+# =============================================================================
+class PoseExtractor:
+    """
+    Wrapper class for pose extraction functionality.
+    Provides a simple interface for extracting poses from videos.
+    """
+
+    def __init__(self):
+        """Initialize the PoseExtractor"""
+        self.pose_detector = None
+        self.mp_pose = None
+        self.mp_drawing = None
+
+    def extract_from_video(self, video_path, stroke_type='Clear'):
+        """
+        Extract pose features from a video file.
+
+        Args:
+            video_path: Path to video file (.mp4, .avi, etc.)
+            stroke_type: Type of stroke ('Clear' or 'Smash')
+
+        Returns:
+            poses: List of pose arrays (33, 4) for each frame
+
+        Raises:
+            Exception if video processing fails
+        """
+        # Initialize detector if not already done
+        if self.pose_detector is None:
+            self.pose_detector, self.mp_pose, self.mp_drawing = initialize_pose_detector()
+
+        # Extract poses
+        poses, frame_qualities, success = extract_pose_from_video(
+            video_path,
+            self.pose_detector,
+            stroke_type
+        )
+
+        if not success or poses is None:
+            raise Exception(f"Failed to extract poses from {video_path}")
+
+        # Interpolate missing poses
+        interpolated_poses = interpolate_missing_poses(poses)
+
+        # Calculate quality
+        quality = calculate_pose_quality(interpolated_poses, frame_qualities)
+
+        # Return in format expected by feature engineering
+        return {
+            'poses': interpolated_poses,
+            'frame_qualities': frame_qualities,
+            'quality': quality,
+            'num_frames': len(interpolated_poses),
+            'num_keypoints': 33
+        }
+
+    def close(self):
+        """Close the pose detector"""
+        if self.pose_detector is not None:
+            self.pose_detector.close()
+            self.pose_detector = None
+
+
 if __name__ == "__main__":
     main()

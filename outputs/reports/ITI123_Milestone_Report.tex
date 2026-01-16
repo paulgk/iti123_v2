@@ -31,14 +31,14 @@
 Clear vs Smash Stroke Analysis}}
 
 \author{Student Name \\ Student ID \\ ITI123 - Artificial Intelligence}
-\date{January 15, 2026}
+\date{January 16, 2026 (Updated)}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This milestone report presents a comprehensive investigation into classifying badminton Clear and Smash strokes using pose estimation techniques. We implemented MediaPipe-based pose extraction on the ShuttleSet dataset (4,983 clips, 40 matches) and developed a machine learning pipeline with multiple model architectures. Despite implementing state-of-the-art feature engineering including novel wrist orientation features, comprehensive data preprocessing with group-stratified splitting, and proper padding masking for sequence models, all classifiers achieved approximately 50\% accuracy (random guessing level). Through rigorous Cohen's d effect size analysis, we identified the fundamental issue: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d < 0.2 across all 60 features). This report documents our methodology, extensive analysis, improvement iterations, and provides evidence-based recommendations for future work requiring multi-modal sensing or alternative stroke pair selection.
+This milestone report presents a comprehensive investigation into classifying badminton Clear and Smash strokes using pose estimation techniques. We implemented MediaPipe-based pose extraction on the ShuttleSet dataset (4,682 forehand-only clips from 40 matches, with 301 backhand shots filtered out) and developed a machine learning pipeline with multiple model architectures. Despite implementing state-of-the-art feature engineering including novel wrist orientation features, comprehensive data preprocessing with group-stratified splitting, and proper padding masking for sequence models, all classifiers achieved approximately 50\% accuracy (random guessing level). Through rigorous Cohen's d effect size analysis, we identified the fundamental issue: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d < 0.2 across all 60 features). This report documents our methodology, extensive analysis, improvement iterations, and provides evidence-based recommendations for future work requiring multi-modal sensing or alternative stroke pair selection.
 \end{abstract}
 
 \tableofcontents
@@ -61,13 +61,15 @@ The primary objective is to investigate whether \textbf{pose estimation alone} c
 
 \textbf{Source}: ShuttleSet - A Human Action Recognition Dataset for Badminton Singles
 
-\textbf{Statistics}:
+\textbf{Statistics (Forehand-Only Dataset)}:
 \begin{itemize}
-    \item Total clips: 4,983 (extracted at shuttlecock contact)
-    \item Clear strokes: 2,660 (53.4\%)
-    \item Smash strokes: 2,321 (46.6\%)
+    \item Original clips: 4,983 (mixed forehand and backhand)
+    \item \textbf{Filtered clips: 4,682} (forehand-only, extracted at shuttlecock contact)
+    \item Backhand shots removed: 301 (291 Clear, 10 Smash)
+    \item Clear strokes: 2,371 (50.6\%)
+    \item Smash strokes: 2,311 (49.4\%)
     \item Unique matches: 40
-    \item Pose extraction success rate: 99.4\% (4,954/4,983)
+    \item Pose extraction success rate: 99.4\% (4,655/4,682)
 \end{itemize}
 
 \subsection{Methodology Overview}
@@ -206,20 +208,22 @@ test_matches = 15% of (clear_matches + smash_matches)
     \item Realistic evaluation (generalizes to new matches)
 \end{itemize}
 
-\textbf{Results}:
+\textbf{Results (Forehand-Only Splits)}:
 \begin{table}[H]
 \centering
 \caption{Data Split Statistics}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
 \textbf{Split} & \textbf{Clips} & \textbf{Matches} & \textbf{\% Clear} & \textbf{\% Smash} \\ \midrule
-Train & 3,347 & 27 & 53.22\% & 46.78\% \\
-Validation & 687 & 5 & 52.03\% & 47.97\% \\
-Test & 920 & 8 & 55.10\% & 44.90\% \\
+Train & 3,554 & 27 & 50.45\% & 49.55\% \\
+Validation & 426 & 5 & 50.70\% & 49.30\% \\
+Test & 675 & 8 & 54.22\% & 45.78\% \\
 \midrule
-\textbf{Overall} & \textbf{4,954} & \textbf{40} & \textbf{53.40\%} & \textbf{46.60\%} \\ \bottomrule
+\textbf{Overall} & \textbf{4,655} & \textbf{40} & \textbf{50.62\%} & \textbf{49.38\%} \\ \bottomrule
 \end{tabular}
 \end{table}
+
+\textbf{Note}: 27 clips failed pose extraction (4,655 valid samples from 4,682 filtered clips).
 
 All splits within $\pm$2\% of overall distribution.
 
