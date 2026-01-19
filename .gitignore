@@ -54,7 +54,7 @@ data/processed/poses/*.npy
 data/processed/poses/*.pkl
 data/processed/features/*.npy
 data/processed/features/*.pkl
-
+data/processed/splits/*.pkl
 #Shuttleset Annotations 
 data/annotations/*
 # Models (keep only final model for submission)
