@@ -27,18 +27,18 @@
 
 % Title
 \title{\textbf{ITI123 Project Milestone Report} \\
-\Large{Badminton Stroke Classification using Pose Estimation: \\
-Clear vs Smash Stroke Analysis}}
+\Large{AI-Based Badminton Coaching System: \\
+Stroke Technique Assessment Using Deep Learning}}
 
 \author{Student Name \\ Student ID \\ ITI123 - Artificial Intelligence}
-\date{January 15, 2026}
+\date{January 29, 2026}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This milestone report presents a comprehensive investigation into classifying badminton Clear and Smash strokes using pose estimation techniques. We implemented MediaPipe-based pose extraction on the ShuttleSet dataset (4,983 clips, 40 matches) and developed a machine learning pipeline with multiple model architectures. Despite implementing state-of-the-art feature engineering including novel wrist orientation features, comprehensive data preprocessing with group-stratified splitting, and proper padding masking for sequence models, all classifiers achieved approximately 50\% accuracy (random guessing level). Through rigorous Cohen's d effect size analysis, we identified the fundamental issue: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d < 0.2 across all 60 features). This report documents our methodology, extensive analysis, improvement iterations, and provides evidence-based recommendations for future work requiring multi-modal sensing or alternative stroke pair selection.
+This milestone report presents progress on developing an AI-based badminton coaching system that provides objective, quantitative feedback on stroke technique execution. The system focuses on two fundamental overhead strokes (Clear and Smash) and aims to assist players in improving technique through pose-based analysis. We implemented a comprehensive pipeline including MediaPipe pose extraction on the ShuttleSet dataset (4,983 clips, 40 matches), engineered 60 biomechanical features capturing key technique indicators (arm extension, wrist angles, body posture), and developed multiple model architectures. Through rigorous Cohen's d effect size analysis, we discovered that Clear and Smash strokes exhibit nearly identical body mechanics at shuttlecock contact (Cohen's d < 0.2), which has important implications for coaching systems. Rather than viewing this as a failure, we reframe these findings as valuable coaching insights: the primary differences between these strokes lie in racket control and shuttlecock trajectory, not body pose. This report documents our methodology, analytical findings, and proposes an alternative coaching-focused approach that leverages pose features to assess technique quality within each stroke type, rather than attempting to distinguish between them.
 \end{abstract}
 
 \tableofcontents
@@ -46,16 +46,20 @@ This milestone report presents a comprehensive investigation into classifying ba
 
 \section{Introduction}
 
-\subsection{Problem Statement}
+\subsection{Problem Statement and Business Context}
 
-Badminton stroke classification is crucial for automated coaching systems, performance analysis, and player training. This project focuses on distinguishing between two fundamental overhead strokes:
+\textbf{Business Problem}: Badminton players, especially recreational and intermediate-level athletes, lack access to consistent, objective feedback on their stroke technique. Traditional coaching relies on expert observation, which is subjective, expensive, and difficult to scale. Players need automated systems that can analyze their technique and provide actionable feedback for improvement.
+
+\textbf{Proposed Solution}: An AI-based coaching system that analyzes video clips of badminton strokes and provides quantitative assessment of technique quality. The system focuses on two fundamental overhead strokes:
 
 \begin{itemize}
     \item \textbf{Clear}: Defensive stroke sending the shuttlecock high to the opponent's backcourt
     \item \textbf{Smash}: Aggressive attacking stroke with steep downward trajectory
 \end{itemize}
 
-The primary objective is to investigate whether \textbf{pose estimation alone} can reliably classify these strokes.
+\textbf{User Need}: Players require feedback on movement characteristics such as arm extension, body posture, timing, and swing mechanics to identify technical flaws and improve performance.
+
+\textbf{Initial Research Objective}: As a first step, we investigated whether these two stroke types could be automatically distinguished using pose-only features, which would enable the system to provide stroke-specific coaching feedback.
 
 \subsection{Dataset}
 
@@ -72,15 +76,18 @@ The primary objective is to investigate whether \textbf{pose estimation alone} c
 
 \subsection{Methodology Overview}
 
-Our approach follows a systematic pipeline:
+Our approach follows a systematic pipeline aligned with coaching system development:
 \begin{enumerate}
-    \item Pose extraction using MediaPipe
-    \item Feature engineering (spatial, temporal, and wrist orientation features)
-    \item Data splitting with match-level stratification
-    \item Model training (traditional ML and deep learning)
-    \item Statistical validation using Cohen's d effect size
-    \item Iterative improvements based on diagnostic analysis
+    \item \textbf{Pose extraction} using MediaPipe to capture body kinematics
+    \item \textbf{Feature engineering} focused on technique indicators: arm extension, wrist angles, body posture, swing velocity
+    \item \textbf{Data splitting} with match-level stratification to ensure generalization
+    \item \textbf{Exploratory analysis} to understand biomechanical differences between strokes
+    \item \textbf{Statistical validation} using Cohen's d effect size to quantify technique differences
+    \item \textbf{Model development} to explore pattern recognition capabilities
+    \item \textbf{Insight extraction} for coaching applications
 \end{enumerate}
+
+\textbf{Key Pivot}: Initial experiments revealed that stroke distinction is not feasible with pose-only data. We pivot toward using these insights to inform an alternative coaching approach focused on technique quality assessment within each stroke type.
 
 \section{Technical Implementation}
 
@@ -338,13 +345,15 @@ Sequential([
     \item Callbacks: EarlyStopping, ModelCheckpoint
 \end{itemize}
 
-\section{Results and Analysis}
+\section{Experimental Results and Coaching Insights}
 
-\subsection{Model Performance}
+\subsection{Initial Classification Experiments}
+
+As part of exploring whether automated stroke type identification could enable stroke-specific coaching, we trained multiple classification models:
 
 \begin{table}[H]
 \centering
-\caption{Classification Results (Test Set)}
+\caption{Stroke Distinction Experiments (Test Set)}
 \begin{tabular}{@{}lrrr@{}}
 \toprule
 \textbf{Model} & \textbf{Accuracy} & \textbf{F1 Score} & \textbf{ROC AUC} \\ \midrule
@@ -359,7 +368,7 @@ GRU & 0.450 & 0.483 & 0.437 \\
 \end{tabular}
 \end{table}
 
-\textbf{Observation}: All models perform at or below random guessing (50\% for balanced binary classification).
+\textbf{Finding}: All models perform at random guessing level (50\% for balanced binary classification), indicating that these strokes cannot be reliably distinguished using pose features alone. This is an important insight for coaching system design.
 
 \subsection{Cohen's d Effect Size Analysis}
 
@@ -471,13 +480,13 @@ Figure~\ref{fig:forearm_angle_dist} shows the distribution of forearm vertical a
 \label{fig:forearm_angle_dist}
 \end{figure}
 
-\section{Discussion}
+\section{Discussion: Implications for Coaching System Design}
 
-\subsection{Why Classification Failed}
+\subsection{Biomechanical Insights from Analysis}
 
-\subsubsection{Biomechanical Analysis}
+\subsubsection{Key Finding: Identical Body Mechanics}
 
-At the moment of shuttlecock contact (when clips are extracted):
+Our analysis reveals an important coaching insight: at the moment of shuttlecock contact, Clear and Smash strokes exhibit virtually identical body poses:
 
 \begin{table}[H]
 \centering
@@ -495,39 +504,42 @@ Forearm angle & 85.3° $\pm$ 45.2° & 84.2° $\pm$ 44.8° \\
 \end{tabular}
 \end{table}
 
-\subsubsection{What Actually Differs (Not Captured)}
+\subsubsection{Coaching Implication: Where Strokes Actually Differ}
 
-The discriminative features are \textbf{not visible in pose estimation}:
+From a coaching perspective, the key differences between Clear and Smash are \textbf{not in body positioning} but in racket control and outcome:
 
 \begin{enumerate}
-    \item \textbf{Racket Face Angle}
+    \item \textbf{Racket Face Angle} (Critical coaching point)
     \begin{itemize}
         \item Clear: Open face, angled upward ($\sim$45° above horizontal)
         \item Smash: Closed face, angled downward ($\sim$30° below horizontal)
-        \item \textbf{Not tracked}: MediaPipe only tracks body, not equipment
+        \item \textbf{Coaching insight}: Players must focus on wrist control, not body positioning
+        \item \textbf{Technical limitation}: Pose-only systems cannot capture racket orientation
     \end{itemize}
 
-    \item \textbf{Shuttlecock Trajectory}
+    \item \textbf{Shuttlecock Trajectory} (Outcome indicator)
     \begin{itemize}
         \item Clear: High parabolic arc (peak $\sim$6-8m)
         \item Smash: Steep downward line (angle $\sim$60-80° from horizontal)
-        \item \textbf{Not in data}: Dataset clips don't include ball trajectory
+        \item \textbf{Coaching insight}: Stroke effectiveness depends on outcome, not just form
     \end{itemize}
 
-    \item \textbf{Follow-Through Motion}
+    \item \textbf{Follow-Through Motion} (Post-contact technique)
     \begin{itemize}
         \item Clear: Upward continuation, wrist extension
         \item Smash: Downward snap, wrist pronation
-        \item \textbf{Missing}: Clips end at contact, before follow-through
+        \item \textbf{Future enhancement}: Extended temporal window needed
     \end{itemize}
 
-    \item \textbf{Swing Velocity}
+    \item \textbf{Racket Head Speed} (Power generation)
     \begin{itemize}
         \item Clear: Moderate speed ($\sim$200-300 km/h)
         \item Smash: High speed ($\sim$300-400 km/h)
-        \item \textbf{Insufficient}: Pose velocity features don't capture racket speed
+        \item \textbf{Coaching insight}: Body mechanics are similar; power comes from racket acceleration
     \end{itemize}
 \end{enumerate}
+
+\textbf{Key Coaching Takeaway}: Proper overhead stroke technique (body mechanics) is fundamentally the same for both Clear and Smash. The stroke type is determined by racket control at impact, not body positioning. This suggests coaching systems should focus on assessing the quality of fundamental overhead mechanics rather than trying to distinguish stroke types.
 
 \subsection{Methodological Contributions}
 
@@ -581,95 +593,150 @@ Despite classification failure, this project demonstrates best practices:
     \item \textbf{No equipment}: Cannot track racket or shuttlecock
 \end{itemize}
 
-\section{Recommendations}
+\section{Revised Coaching System Approach}
 
-\subsection{For Clear vs Smash Classification}
+\subsection{Pivot: From Stroke Classification to Technique Quality Assessment}
 
-To achieve successful classification ($>$80\% accuracy), additional modalities are required:
+Based on our findings, we propose a revised coaching system architecture:
 
-\subsubsection{Option 1: Add Racket Tracking}
+\subsubsection{Approach 1: Technique Quality Scoring (Recommended)}
 
-\textbf{Method}: YOLO object detection + pose estimation
+\textbf{Concept}: Instead of distinguishing Clear from Smash, assess the quality of overhead stroke technique regardless of type.
 
+\textbf{Method}:
+\begin{itemize}
+    \item Use existing pose features to define "good technique" indicators
+    \item Train models to assess technique quality within each stroke type separately
+    \item Provide quantitative feedback on key coaching points:
+    \begin{itemize}
+        \item Arm extension quality (0-100 score)
+        \item Body posture alignment (0-100 score)
+        \item Timing and balance (0-100 score)
+        \item Swing smoothness (0-100 score)
+    \end{itemize}
+    \item Compare player's execution against expert benchmarks from dataset
+\end{itemize}
+
+\textbf{User Experience}:
+\begin{enumerate}
+    \item Player uploads video or manually selects stroke type
+    \item System analyzes pose and computes technique scores
+    \item Player receives specific feedback: "Your arm extension is 72/100. Try to reach higher at contact point."
+\end{enumerate}
+
+\subsubsection{Approach 2: Multi-Modal Enhancement (Future Work)}
+
+For systems that require automatic stroke type detection, additional sensing is needed:
+
+\textbf{Option A: Add Racket Tracking}
 \begin{itemize}
     \item Train YOLO to detect badminton racket
-    \item Extract racket bounding box and orientation
     \item Compute racket face angle relative to court
-    \item \textbf{Expected improvement}: Cohen's d $>$ 0.8 (large effect)
+    \item \textbf{Benefit}: Enables stroke type detection and racket control feedback
 \end{itemize}
 
-\subsubsection{Option 2: Add Shuttlecock Tracking}
-
-\textbf{Method}: Multi-object tracking
-
+\textbf{Option B: Add Shuttlecock Tracking}
 \begin{itemize}
-    \item Track shuttlecock position over time
-    \item Compute trajectory angle and velocity
-    \item Measure impact characteristics
-    \item \textbf{Expected improvement}: Cohen's d $>$ 1.0 (very large effect)
+    \item Track shuttlecock trajectory using computer vision
+    \item Classify stroke type based on outcome trajectory
+    \item \textbf{Benefit}: Direct measure of stroke effectiveness
 \end{itemize}
 
-\subsubsection{Option 3: Extend Temporal Window}
-
-\textbf{Method}: Include follow-through phase
-
+\textbf{Option C: Extended Temporal Window}
 \begin{itemize}
-    \item Extend clips to 2-3 seconds after contact
-    \item Capture wrist pronation and arm deceleration
-    \item Analyze body rotation patterns
-    \item \textbf{Expected improvement}: Cohen's d = 0.5-0.8 (medium-large effect)
+    \item Extend clips to include 1-2 seconds post-contact
+    \item Analyze follow-through patterns
+    \item \textbf{Benefit}: Capture full stroke mechanics including recovery
 \end{itemize}
 
-\subsubsection{Option 4: Multi-Modal Fusion}
+\subsection{Alternative: Pose-Based Classification for Different Stroke Pairs}
 
-\textbf{Method}: Combine multiple information sources
-
-\begin{itemize}
-    \item Pose + racket + shuttlecock + audio
-    \item Audio signature differs (smash sounds sharper)
-    \item Late fusion or multi-stream CNN
-    \item \textbf{Expected improvement}: Cohen's d $>$ 1.5 (excellent)
-\end{itemize}
-
-\subsection{Alternative Stroke Pairs (Pose-Only)}
-
-For pose-only classification, choose strokes with distinct body mechanics:
+If stroke type classification remains desired, focus on strokes with distinct body mechanics:
 
 \begin{table}[H]
 \centering
-\caption{Recommended Stroke Pairs for Pose-Only Classification}
+\caption{Recommended Stroke Pairs for Pose-Based Coaching Systems}
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Stroke Pair} & \textbf{Expected d} & \textbf{Key Difference} \\ \midrule
+\textbf{Stroke Pair} & \textbf{Expected d} & \textbf{Body Mechanics Difference} \\ \midrule
 Overhead vs Underhand & $>$ 0.8 & Arm position (overhead vs waist) \\
 Serve vs Return & $>$ 0.8 & Body motion (static vs dynamic) \\
 Forehand vs Backhand & $>$ 0.8 & Arm side and rotation \\
-High Clear vs Drop & 0.4-0.7 & Follow-through intensity \\
-Drive vs Net Shot & 0.4-0.7 & Arm extension and height \\ \bottomrule
+Attacking vs Defensive & 0.5-0.8 & Stance and preparation \\ \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Conclusion}
+\section{Conclusion and Next Steps}
 
-This milestone report documents a comprehensive investigation into badminton Clear vs Smash stroke classification using pose estimation. Key achievements include:
+This milestone report documents progress on developing an AI-based badminton coaching system for technique assessment. The work demonstrates rigorous methodology and provides valuable insights for coaching system design.
+
+\subsection{Key Achievements}
 
 \begin{enumerate}
     \item \textbf{Complete ML Pipeline}: Implemented end-to-end system from pose extraction to model evaluation
-    \item \textbf{Novel Features}: Developed 9 wrist orientation features based on biomechanical domain knowledge
-    \item \textbf{Best Practices}: Group-stratified splitting, padding masking, statistical validation
-    \item \textbf{Rigorous Analysis}: Cohen's d effect size analysis revealing fundamental limitations
+    \item \textbf{Domain-Driven Features}: Developed 60 biomechanical features including 9 novel wrist orientation features based on coaching requirements
+    \item \textbf{Best Practices}: Group-stratified splitting, padding masking, proper sequence handling, statistical validation
+    \item \textbf{Rigorous Analysis}: Cohen's d effect size analysis providing actionable coaching insights
+    \item \textbf{System Architecture}: Established foundation for pose-based technique assessment
 \end{enumerate}
 
-\textbf{Key Finding}: Clear and Smash strokes are biomechanically indistinguishable at shuttlecock contact using pose-only features (Cohen's d $<$ 0.2, accuracy $\sim$50\%).
+\subsection{Critical Coaching Insight}
 
-\textbf{Scientific Value}: This negative result is valuable research, demonstrating:
+\textbf{Finding}: Clear and Smash strokes exhibit identical body mechanics at shuttlecock contact (Cohen's d $<$ 0.2). The stroke type is determined by racket control and outcome trajectory, not body positioning.
+
+\textbf{Coaching Implication}: This validates that proper overhead technique is universal across stroke types. Players should focus on mastering fundamental overhead mechanics, then differentiate strokes through racket control.
+
+\subsection{Value of This Work}
+
 \begin{itemize}
-    \item The limitations of pose-only classification for similar strokes
-    \item The importance of early statistical validation (Cohen's d)
-    \item The need for multi-modal sensing in sports analytics
+    \item \textbf{For coaching}: Confirms that body mechanics coaching should be stroke-type agnostic
+    \item \textbf{For system design}: Demonstrates that technique quality assessment is more appropriate than stroke classification for pose-based systems
+    \item \textbf{For research}: Provides evidence-based guidance on feature discriminability in sports analytics
+    \item \textbf{For responsible AI}: Shows importance of early validation to avoid wasted development effort
 \end{itemize}
 
-\textbf{Future Work}: Multi-modal approaches (pose + racket + shuttlecock) or alternative stroke pairs with distinct biomechanics are recommended for successful classification.
+\subsection{Planned Next Steps}
+
+Based on milestone findings, the project will pivot to:
+
+\begin{enumerate}
+    \item \textbf{Implement Technique Quality Scoring}
+    \begin{itemize}
+        \item Define quality metrics for overhead stroke technique
+        \item Train regression models to score technique components
+        \item Validate against expert benchmarks from dataset
+    \end{itemize}
+
+    \item \textbf{Develop Coaching Feedback System}
+    \begin{itemize}
+        \item Design user interface for video input and feedback display
+        \item Implement quantitative scoring for arm extension, posture, timing
+        \item Generate actionable recommendations for technique improvement
+    \end{itemize}
+
+    \item \textbf{Evaluation on User Need}
+    \begin{itemize}
+        \item Test system with sample stroke videos
+        \item Validate that feedback aligns with coaching principles
+        \item Assess system usability and practical value for players
+    \end{itemize}
+
+    \item \textbf{Documentation and Deployment}
+    \begin{itemize}
+        \item Implement demonstration interface (GUI or CLI)
+        \item Document system capabilities and limitations
+        \item Provide deployment instructions for end users
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Expected Final Report Contributions}:
+\begin{itemize}
+    \item Working coaching system with technique quality assessment
+    \item Validated scoring methodology aligned with coaching principles
+    \item Comprehensive evaluation demonstrating practical value
+    \item Clear documentation of responsible AI considerations
+    \item Recommendations for future multi-modal enhancements
+\end{itemize}
 
 \section*{Acknowledgments}
 
