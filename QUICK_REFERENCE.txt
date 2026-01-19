@@ -1,0 +1,63 @@
+================================================================================
+QUICK REFERENCE - AI Badminton Coach v2.0
+================================================================================
+
+TOMORROW MORNING - SIMPLE WORKFLOW:
+-----------------------------------
+python process_drop_smash_pipeline.py
+
+Then follow the instructions shown on screen.
+
+================================================================================
+
+BRANCHES:
+---------
+main                      → Binary pairs (coaching, 70-85% acc)
+multiclass-game-analysis  → 4-class (game analysis, 50-70% acc)
+
+Switch: git checkout <branch-name>
+
+================================================================================
+
+DATASETS (Main Branch):
+-----------------------
+Drop vs Smash:   5,953 strokes → 70-85% accuracy → COACHING
+Lift vs Smash:   5,328 strokes → 75-90% accuracy → COACHING
+
+DATASET (Multiclass Branch):
+-----------------------------
+4-Class:        11,307 strokes → 50-70% accuracy → GAME ANALYSIS
+
+================================================================================
+
+KEY FILES:
+----------
+NEW_DATASETS_README.md      → Binary pairs documentation
+PROJECT_STATUS.md           → Complete status summary
+MULTICLASS_README.md        → Multi-class docs (multiclass branch)
+TRAINING_ANALYSIS.md        → Why Clear vs Smash failed
+
+================================================================================
+
+SUCCESS CRITERIA:
+-----------------
+Drop vs Smash:  Accuracy > 70%, F1 > 72%
+Lift vs Smash:  Accuracy > 75%, F1 > 77%
+Multi-Class:    Accuracy > 60%, F1 > 58%
+
+================================================================================
+
+IF THINGS GO WRONG:
+-------------------
+No videos?       → Check data/videos/ directory
+Low accuracy?    → Try Lift vs Smash instead
+Out of memory?   → Reduce batch size
+Stuck?          → Read NEW_DATASETS_README.md
+
+================================================================================
+
+STATUS: ✅ READY FOR TOMORROW
+Next: python process_drop_smash_pipeline.py
+
+🚀🏸
+================================================================================
