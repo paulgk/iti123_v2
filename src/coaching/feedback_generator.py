@@ -119,8 +119,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         if status == 'below':
             severity = 'critical' if distance > 0.02 else 'major'
@@ -137,7 +136,8 @@ class CoachingFeedback:
         elif status == 'acceptable':
             severity = 'minor'
             message = "Arm Extension: Near optimal range"
-            impact = f"Fine-tune to reach optimal ({benchmark['optimal']:.3f})"
+            optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric)
+            impact = f"Fine-tune to reach optimal ({optimal:.3f})"
             drill = "Focus on consistency in extension"
 
         else:  # optimal
@@ -151,7 +151,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -164,8 +164,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         if status == 'below':
             severity = 'critical' if distance > 15 else 'major'
@@ -182,7 +181,8 @@ class CoachingFeedback:
         elif status == 'acceptable':
             severity = 'minor'
             message = "Velocity: Good speed"
-            impact = f"Aim for optimal speed ({benchmark['optimal']:.1f})"
+            optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric)
+            impact = f"Aim for optimal speed ({optimal:.1f})"
             drill = "Plyometric exercises for explosive power"
 
         else:  # optimal
@@ -196,7 +196,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -209,8 +209,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         if status == 'below':
             severity = 'major'
@@ -241,7 +240,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -254,8 +253,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         # Note: Negative values = leaning back (typical for overhead shots)
         if status == 'below':
@@ -287,7 +285,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -300,8 +298,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         if status == 'below':
             severity = 'minor'
@@ -332,7 +329,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -345,8 +342,7 @@ class CoachingFeedback:
             return
 
         value = features[metric]
-        benchmark = benchmarks[metric]
-        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmark)
+        status, distance = TechniqueBenchmarks.get_metric_status(value, benchmarks, metric)
 
         if status == 'below':
             severity = 'major'
@@ -377,7 +373,7 @@ class CoachingFeedback:
             severity=severity,
             message=message,
             current_value=value,
-            target_range=(benchmark['min'], benchmark['max']),
+            target_range=TechniqueBenchmarks.get_target_range(benchmarks, metric),
             drill=drill,
             impact=impact
         ))
@@ -406,13 +402,15 @@ class CoachingFeedback:
                 metric_score = 100
             elif status == 'acceptable':
                 # Score based on distance from optimal
-                range_width = benchmark['max'] - benchmark['min']
+                min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric)
+                range_width = max_val - min_val
                 tolerance = range_width * 0.25
                 distance_ratio = distance / tolerance
                 metric_score = max(70, 100 - (distance_ratio * 15))
             else:  # below or above
                 # Score based on how far outside range
-                range_width = benchmark['max'] - benchmark['min']
+                min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric)
+                range_width = max_val - min_val
                 distance_ratio = distance / range_width
                 metric_score = max(0, 60 - (distance_ratio * 40))
 

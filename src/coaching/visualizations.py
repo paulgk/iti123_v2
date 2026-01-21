@@ -74,7 +74,8 @@ class TechniqueVisualizer:
             if metric in features:
                 metrics.append(metric)
                 user_values.append(features[metric])
-                optimal_values.append(benchmarks[metric]['optimal'])
+                optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric)
+                optimal_values.append(optimal)
 
                 # Create readable labels
                 label = metric.replace('_', ' ').replace('mean', '').strip()
@@ -86,13 +87,13 @@ class TechniqueVisualizer:
         normalized_optimal = []
 
         for i, metric in enumerate(metrics):
-            benchmark = benchmarks[metric]
-            range_width = benchmark['max'] - benchmark['min']
+            min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric)
+            range_width = max_val - min_val
 
             if range_width > 0:
                 # Normalize to 0-1 based on professional range
-                user_norm = (user_values[i] - benchmark['min']) / range_width
-                optimal_norm = (optimal_values[i] - benchmark['min']) / range_width
+                user_norm = (user_values[i] - min_val) / range_width
+                optimal_norm = (optimal_values[i] - min_val) / range_width
 
                 # Clip to 0-1 range
                 user_norm = max(0, min(1, user_norm))
@@ -194,12 +195,13 @@ class TechniqueVisualizer:
             metrics.append(label)
 
             # Calculate score (0-100) based on distance from optimal
-            benchmark = benchmarks.get(item.metric, {})
-            if benchmark:
-                range_width = benchmark['max'] - benchmark['min']
+            metric_name = item.metric
+            if metric_name in benchmarks or f"{metric_name}_target" in benchmarks:
+                min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric_name)
+                range_width = max_val - min_val
                 if range_width > 0:
                     # How close to optimal (0-100)
-                    optimal = benchmark['optimal']
+                    optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric_name)
                     distance = abs(item.current_value - optimal)
                     max_distance = range_width / 2
                     score = max(0, 100 - (distance / max_distance * 100))
@@ -414,7 +416,8 @@ class TechniqueVisualizer:
             if metric in features:
                 metrics.append(metric)
                 user_values.append(features[metric])
-                optimal_values.append(benchmarks[metric]['optimal'])
+                optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric)
+                optimal_values.append(optimal)
 
                 label = metric.replace('_', ' ').replace('mean', '').strip()
                 label = label.replace('r ', '').title()
@@ -424,12 +427,12 @@ class TechniqueVisualizer:
         normalized_optimal = []
 
         for i, metric in enumerate(metrics):
-            benchmark = benchmarks[metric]
-            range_width = benchmark['max'] - benchmark['min']
+            min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric)
+            range_width = max_val - min_val
 
             if range_width > 0:
-                user_norm = (user_values[i] - benchmark['min']) / range_width
-                optimal_norm = (optimal_values[i] - benchmark['min']) / range_width
+                user_norm = (user_values[i] - min_val) / range_width
+                optimal_norm = (optimal_values[i] - min_val) / range_width
                 user_norm = max(0, min(1, user_norm))
                 optimal_norm = max(0, min(1, optimal_norm))
             else:
@@ -484,11 +487,12 @@ class TechniqueVisualizer:
                 label = label[:17] + '...'
             metrics.append(label)
 
-            benchmark = benchmarks.get(item.metric, {})
-            if benchmark:
-                range_width = benchmark['max'] - benchmark['min']
+            metric_name = item.metric
+            if metric_name in benchmarks or f"{metric_name}_target" in benchmarks:
+                min_val, max_val = TechniqueBenchmarks.get_target_range(benchmarks, metric_name)
+                range_width = max_val - min_val
                 if range_width > 0:
-                    optimal = benchmark['optimal']
+                    optimal = TechniqueBenchmarks.get_target_value(benchmarks, metric_name)
                     distance = abs(item.current_value - optimal)
                     max_distance = range_width / 2
                     score = max(0, 100 - (distance / max_distance * 100))
