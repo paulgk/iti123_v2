@@ -83,3 +83,18 @@ outputs/reports/*.html
 *.zip
 *.tar.gz
 *.csv.gz
+
+# Infrastructure Foundation - Additional exclusions (v1.1)
+# Video files - all formats (stored in GCS, not Git)
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Raw data directories (GCS storage only)
+data/raw/**
+raw_videos/**
+
+# Additional temporary files
+*.tmp
+
