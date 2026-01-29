@@ -1,0 +1,22 @@
+# Path Configuration for Badminton ML Project
+
+# Google Cloud Storage Configuration
+gcs:
+  bucket: "iti123-badminton-ml"
+  videos_prefix: "videos/"
+  features_prefix: "features/"
+  models_prefix: "models/"
+  checkpoints_prefix: "checkpoints/"
+  mlflow_prefix: "mlflow/"
+
+# Local Paths
+local:
+  data_dir: "data/"
+  raw_videos_dir: "raw_videos/"
+  features_dir: "data/features/"
+  models_dir: "models/"
+  mlruns_dir: "mlruns/"
+
+# Git LFS Paths (production models only)
+git_lfs:
+  models_dir: "models/production/"
