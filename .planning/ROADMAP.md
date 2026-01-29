@@ -35,13 +35,16 @@ The v1.1 milestone transforms the current benchmark-based coaching system into a
 1. GCS bucket is accessible from Colab Enterprise with video files uploaded
 2. Git LFS tracks model files without exceeding bandwidth limits (under 100MB in test week)
 3. Colab runtime executes Python 3.10 terminal scripts successfully (TensorFlow 2.15 compatible)
-4. Bidirectional sync workflow completes end-to-end (clone → edit → commit → push → verify)
+4. Bidirectional sync workflow completes end-to-end (clone -> edit -> commit -> push -> verify)
 5. MLflow logs experiments to GCS backend and can be queried
 
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD during phase planning
+- [ ] 01-01-PLAN.md — Git LFS setup and configuration files (Wave 1)
+- [ ] 01-02-PLAN.md — GCS setup and MLflow configuration (Wave 1)
+- [ ] 01-03-PLAN.md — Bidirectional sync scripts (Wave 2)
+- [ ] 01-04-PLAN.md — Colab runtime and infrastructure verification (Wave 3)
 
 ---
 
@@ -53,7 +56,7 @@ Plans:
 
 **Requirements**: Feature Engineering category
 - Phase segmentation algorithm (5 phases)
-- Kinetic chain timing features (hip→trunk→shoulder→elbow→wrist)
+- Kinetic chain timing features (hip->trunk->shoulder->elbow->wrist)
 - Contact frame-specific analysis
 - Phase-specific feature extraction
 - Angular velocity features
@@ -137,15 +140,15 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Foundation | 0/TBD | Not started | - |
+| 1. Infrastructure Foundation | 0/4 | Planned | - |
 | 2. Feature Engineering Enhancement | 0/TBD | Not started | - |
 | 3. Model Training & Evaluation | 0/TBD | Not started | - |
 | 4. Production Integration | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-01-29 - Initial roadmap creation*
+*Last updated: 2026-01-29 - Phase 1 planning complete*
