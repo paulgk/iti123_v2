@@ -1,4 +1,4 @@
-# AI Badminton Coaching App - v1.0 Milestone
+# AI Badminton Coaching App
 
 ## What This Is
 
@@ -19,23 +19,38 @@ Analyze an input video and give accurate, actionable feedback on how to improve 
 - ✓ Streamlit web interface (video upload → analysis → feedback) — existing
 - ✓ Visualization system (radar charts, bar charts, score gauges) — existing
 
+## Current Milestone: v1.1 Coach-Informed ML + Colab Infrastructure
+
+**Goal:** Improve ML classification accuracy through coach-informed feature engineering and establish Colab Enterprise workflow for scalable training.
+
+**Target features:**
+- Colab Enterprise infrastructure with Git LFS for videos
+- Coach-informed feature expansion (beyond 427 features)
+- Retrained ML classification model with improved accuracy
+- Extended stroke type coverage (Clear, Smash, Drop, Drive, Net shots)
+- Bidirectional git ↔ Colab sync workflow
+
 ### Active
 
-- [ ] Validate system on external videos (beyond ShuttleSet dataset)
-- [ ] Test feedback accuracy (biomechanically correct suggestions)
-- [ ] Test severity ranking (critical issues prioritized correctly)
-- [ ] Finalize LaTeX milestone report (align with rubrics)
-- [ ] Document benchmark methodology in report
-- [ ] Address rubric criteria systematically
-- [ ] Prepare submission package (report + code + demo)
+- [ ] Set up Git LFS for video storage
+- [ ] Configure Colab Enterprise environment for script execution
+- [ ] Create git ↔ Colab sync workflow (data pull, output push)
+- [ ] Research coaching biomechanics from literature/videos
+- [ ] Identify and implement coach-suggested features
+- [ ] Expand feature set beyond current 427 features
+- [ ] Retrain classification model with improved features
+- [ ] Expand stroke type support (Drop, Drive, Net shots)
+- [ ] Validate classification accuracy improvements
+- [ ] Assess feedback quality improvements
 
 ### Out of Scope
 
-- ML classification improvements (acknowledged limitation for v1.0)
-- Backhand stroke benchmarks (forehand-only for v1.0)
-- Additional stroke types beyond Clear & Smash (future work)
+- Jupyter notebooks in Colab (using terminal scripts only)
+- Direct coach consultation (using literature/videos instead)
+- Backhand-specific benchmarks (v1.1 still forehand-focused for new strokes)
 - Mobile app or deployment infrastructure (v2.0+)
 - Real-time video analysis (v2.0+)
+- Automated testing framework (future work)
 
 ## Context
 
@@ -66,11 +81,11 @@ Analyze an input video and give accurate, actionable feedback on how to improve 
 ## Constraints
 
 - **Tech Stack**: Must use existing Python/MediaPipe/Streamlit stack
+- **Colab Environment**: Colab Enterprise, terminal-based script execution only
 - **Dataset**: Limited to ShuttleSet (cannot gather new professional data)
-- **Stroke Types**: Clear & Smash only (no time for additional stroke types)
-- **Timeline**: Milestone due next week or later (but want to submit confidently)
-- **Validation**: Need ground truth data to validate feedback accuracy
-- **Academic**: Report must follow LaTeX format and address rubrics
+- **Coach Input**: Indirect via literature/videos (no direct consultation)
+- **Git Storage**: Must use Git LFS for video files to manage repo size
+- **Validation**: Classification accuracy and feedback quality metrics
 
 ## Key Decisions
 
@@ -83,4 +98,4 @@ Analyze an input video and give accurate, actionable feedback on how to improve 
 | No automated testing | Time pressure, manual validation sufficient for v1.0 | ⚠️ Revisit - Risky for future iterations |
 
 ---
-*Last updated: 2026-01-21 after initialization*
+*Last updated: 2026-01-29 after v1.1 milestone start*
