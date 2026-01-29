@@ -1,22 +1,30 @@
-# Path Configuration for Badminton ML Project
-
-# Google Cloud Storage Configuration
+# Path Configuration for GCS and Local Storage
 gcs:
-  bucket: "iti123-badminton-ml"
+  bucket: "iti123-badminton-ml"  # User will customize
   videos_prefix: "videos/"
   features_prefix: "features/"
-  models_prefix: "models/"
+  models_prefix: "models/experiments/"
   checkpoints_prefix: "checkpoints/"
   mlflow_prefix: "mlflow/"
 
-# Local Paths
 local:
-  data_dir: "data/"
-  raw_videos_dir: "raw_videos/"
-  features_dir: "data/features/"
-  models_dir: "models/"
-  mlruns_dir: "mlruns/"
+  # Colab paths (ephemeral)
+  colab_root: "/content"
+  colab_data: "/content/data"
+  colab_outputs: "/content/outputs"
 
-# Git LFS Paths (production models only)
-git_lfs:
-  models_dir: "models/production/"
+  # Git repo paths (persistent via git)
+  repo_data: "data/"
+  repo_models: "models/"
+  repo_outputs: "outputs/"
+  repo_features: "data/processed/features/"
+
+sync:
+  # Files to pull from GCS at session start
+  pull_patterns:
+    - "videos/*.mp4"
+    - "features/*.pkl"
+  # Files to push to GCS at session end
+  push_patterns:
+    - "outputs/**"
+    - "checkpoints/**"
