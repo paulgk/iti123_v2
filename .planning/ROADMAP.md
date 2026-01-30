@@ -10,7 +10,7 @@ The v1.1 milestone transforms the current benchmark-based coaching system into a
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions if needed
 
-- [ ] **Phase 1: Infrastructure Foundation** - Establish reliable Colab workflow with GCS and Git LFS
+- [x] **Phase 1: Infrastructure Foundation** - Establish reliable Colab workflow with GCS and Git LFS
 - [ ] **Phase 2: Feature Engineering Enhancement** - Add coach-informed biomechanical features
 - [ ] **Phase 3: Model Training & Evaluation** - Train and validate improved ML models
 - [ ] **Phase 4: Production Integration** - Integrate ML classification into production system
@@ -41,10 +41,10 @@ The v1.1 milestone transforms the current benchmark-based coaching system into a
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Git LFS setup and configuration files (Wave 1)
-- [ ] 01-02-PLAN.md — GCS setup and MLflow configuration (Wave 1)
-- [ ] 01-03-PLAN.md — Bidirectional sync scripts (Wave 2)
-- [ ] 01-04-PLAN.md — Colab runtime and infrastructure verification (Wave 3)
+- [x] 01-01-PLAN.md — Git LFS setup and configuration files (Wave 1)
+- [x] 01-02-PLAN.md — GCS setup and MLflow configuration (Wave 1)
+- [x] 01-03-PLAN.md — Bidirectional sync scripts (Wave 2)
+- [x] 01-04-PLAN.md — Colab runtime and infrastructure verification (Wave 3)
 
 ---
 
@@ -52,17 +52,19 @@ Plans:
 
 **Goal**: Add 50-150 validated biomechanical features based on coaching research to improve model discriminative power without overfitting.
 
-**Depends on**: Phase 1
+**Depends on**: Phase 1 (complete)
 
 **Requirements**: Feature Engineering category
-- Phase segmentation algorithm (5 phases)
-- Kinetic chain timing features (hip->trunk->shoulder->elbow->wrist)
-- Contact frame-specific analysis
-- Phase-specific feature extraction
-- Angular velocity features
-- Racket head speed estimation
-- Deceleration control features
-- Feature selection analysis (reduce to <254 features)
+- FEAT-01: Phase segmentation algorithm (5 phases)
+- FEAT-02: Kinetic chain timing features (hip->trunk->shoulder->elbow->wrist)
+- FEAT-03: Contact frame-specific analysis with intent window
+- FEAT-04: Phase-specific feature extraction
+- FEAT-05: Angular velocity features
+- FEAT-06: Racket head speed estimation
+- FEAT-07: Deceleration control features (deprioritized - dataset is Clear+Smash)
+- FEAT-08: Feature selection on current features
+- FEAT-09: Reduce to <254 features (N_train/10 threshold)
+- FEAT-10: Literature-validated prioritization
 
 **Success Criteria** (what must be TRUE):
 1. Phase segmentation algorithm identifies 5 stroke phases (preparation, backswing, forward swing, contact, follow-through) with 85%+ boundary accuracy
@@ -71,10 +73,14 @@ Plans:
 4. Feature selection analysis shows each new feature has Cohen's d > 0.5 for medium effect
 5. Feature engineering v3 maintains backward compatibility with v2 (427 features) through version gating
 
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] TBD during phase planning
+- [ ] 02-01-PLAN.md — Phase segmentation algorithm with velocity-based detection (Wave 1)
+- [ ] 02-02-PLAN.md — P0 features: kinetic chain timing + contact frame analysis (Wave 2)
+- [ ] 02-03-PLAN.md — P1 features: angular velocity + phase-specific extraction (Wave 2)
+- [ ] 02-04-PLAN.md — Feature selection pipeline: filter (Cohen's d, VIF) + wrapper (RFECV) (Wave 3)
+- [ ] 02-05-PLAN.md — Feature engineering v3 integration with version compatibility (Wave 4)
 
 ---
 
@@ -144,11 +150,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Foundation | 0/4 | Planned | - |
-| 2. Feature Engineering Enhancement | 0/TBD | Not started | - |
+| 1. Infrastructure Foundation | 4/4 | Complete | 2026-01-30 |
+| 2. Feature Engineering Enhancement | 0/5 | Planned | - |
 | 3. Model Training & Evaluation | 0/TBD | Not started | - |
 | 4. Production Integration | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-01-29 - Phase 1 planning complete*
+*Last updated: 2026-01-30 - Phase 2 planning complete*
