@@ -1,6 +1,6 @@
 # Path Configuration for GCS and Local Storage
 gcs:
-  bucket: "iti123-badminton-ml"  # User will customize
+  bucket: "iti123storage"  # User will customize
   videos_prefix: "videos/"
   features_prefix: "features/"
   models_prefix: "models/experiments/"
