@@ -46,6 +46,7 @@ def detect_dominant_side(pose_sequence):
     l_avg_height = np.mean(l_wrist_heights)
 
     # Lower Y value = higher position
+    # If right wrist has lower Y (higher position), player is right-handed
     if r_avg_height < l_avg_height:
         return 'right'
     else:
