@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 2 of 4 (Feature Engineering Enhancement)
-Plan: 1 of 9 (Phase Segmentation)
+Plan: 2 of 9 (Kinetic Chain Timing and Contact Frame Features)
 Status: In progress
-Last activity: 2026-01-30 - Completed 02-01-PLAN.md
+Last activity: 2026-01-30 - Completed 02-02-PLAN.md
 
-Progress: [███░░░░░░░] 28% (5 of 18 plans complete)
+Progress: [███░░░░░░░] 33% (6 of 18 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3.7 hours
-- Total execution time: 18.8 hours
+- Total plans completed: 6
+- Average duration: 3.2 hours
+- Total execution time: 18.9 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-infrastructure-foundation | 4/4 | 18.7hr | 4.7hr |
-| 02-feature-engineering-enhancement | 1/9 | 5min | 5min |
+| 02-feature-engineering-enhancement | 2/9 | 12min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (18.2hr), 01-03 (18min), 01-04 (10min), 02-01 (5min)
+- Last 5 plans: 01-03 (18min), 01-04 (10min), 02-01 (5min), 02-02 (7min)
 - Trend: Fully autonomous plans execute quickly; checkpointed plans take longer
 
 *Updated after each plan completion*
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - 02-01: Intent window [contact-5:contact-2] is most discriminative moment per coaching research
 - 02-01: Phase boundaries use scipy.signal.find_peaks with biomechanically-informed parameters
 - 02-01: Validation checks enforce research-based timing constraints without raising exceptions
+- 02-02: Kinetic chain timing measured ONLY in forward swing phase (prevents preparation peak contamination)
+- 02-02: SIS formula weights: 0.35 elbow lead, 0.30 pronation, 0.15 non-racket arm, 0.10 torso, 0.10 COM
+- 02-02: SIS thresholds: >=0.65 smash, 0.40-0.65 deceptive, <0.40 clear
+- 02-02: Edge case handling: missing landmarks return NaN, contact<5 uses available frames
 
 ### Pending Todos
 
@@ -88,10 +92,12 @@ None yet.
 
 **Phase 2 progress:**
 - Plan 02-01 complete: Phase segmentation with velocity-based detection
+- Plan 02-02 complete: Kinetic chain timing and contact frame features (P0 features)
+- P0 features add ~20 features (7 kinetic + 8 contact + 6 intent)
+- Current feature count: ~328-335 (v2: 308-315 + P0: 20)
+- Must apply feature selection to reach <254 target (N_train/10 rule)
 - Batch validation (85%+ pass rate) pending real dataset test in Colab
 - Handedness detection assumes overhead strokes (may need refinement)
-- Feature engineering explosion risk (427 → too many features) could worsen overfitting
-- Small dataset (3,347 samples) constrains feature count to <254 (N_train/10 rule)
 - Drop shot biomechanics has limited research literature
 
 **Phase 3 readiness:**
@@ -103,10 +109,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-30T15:16:23Z
-Stopped at: Completed 02-01-PLAN.md (Phase Segmentation) - Phase 2 in progress (1/9 plans)
+Last session: 2026-01-30T15:27:35Z
+Stopped at: Completed 02-02-PLAN.md (Kinetic Chain Timing and Contact Frame Features) - Phase 2 in progress (2/9 plans)
 Resume file: None
-Next: 02-02-PLAN.md (Kinetic Chain Timing Features)
+Next: 02-03-PLAN.md (Phase-Specific Features) or feature selection planning
 
 ---
 
