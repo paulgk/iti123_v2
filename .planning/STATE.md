@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 2 of 4 (Feature Engineering Enhancement)
-Plan: 2 of 9 (Kinetic Chain Timing and Contact Frame Features)
+Plan: 3 of 9 (P1 Features: Angular Velocity and Phase-Specific Extraction)
 Status: In progress
-Last activity: 2026-01-30 - Completed 02-02-PLAN.md
+Last activity: 2026-01-30 - Completed 02-03-PLAN.md
 
-Progress: [███░░░░░░░] 33% (6 of 18 plans complete)
+Progress: [███░░░░░░░] 39% (7 of 18 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 3.2 hours
+- Total plans completed: 7
+- Average duration: 2.7 hours
 - Total execution time: 18.9 hours
 
 **By Phase:**
@@ -28,11 +28,11 @@ Progress: [███░░░░░░░] 33% (6 of 18 plans complete)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-infrastructure-foundation | 4/4 | 18.7hr | 4.7hr |
-| 02-feature-engineering-enhancement | 2/9 | 12min | 6min |
+| 02-feature-engineering-enhancement | 3/9 | 16min | 5.3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (18min), 01-04 (10min), 02-01 (5min), 02-02 (7min)
-- Trend: Fully autonomous plans execute quickly; checkpointed plans take longer
+- Last 5 plans: 01-04 (10min), 02-01 (5min), 02-02 (7min), 02-03 (4min)
+- Trend: Fully autonomous plans execute quickly; feature engineering plans under 10min each
 
 *Updated after each plan completion*
 
@@ -68,6 +68,12 @@ Recent decisions affecting current work:
 - 02-02: SIS formula weights: 0.35 elbow lead, 0.30 pronation, 0.15 non-racket arm, 0.10 torso, 0.10 COM
 - 02-02: SIS thresholds: >=0.65 smash, 0.40-0.65 deceptive, <0.40 clear
 - 02-02: Edge case handling: missing landmarks return NaN, contact<5 uses available frames
+- 02-03: Double-smoothing pipeline (sigma=1.5, 1.0) prevents MediaPipe jitter amplification in angular velocity
+- 02-03: Angular velocities clipped to <5000 deg/s (realistic human joint maximum)
+- 02-03: Racket head speed from wrist velocity proxy (research correlation r=0.72-0.74)
+- 02-03: Robust statistics (median, percentiles) over mean for angular velocity features
+- 02-03: Phase-specific features for all 5 phases with consistent naming: {phase}_{feature}_{stat}
+- 02-03: Deceleration features implemented (FEAT-07) but expected low effect for Clear vs Smash
 
 ### Pending Todos
 
@@ -93,12 +99,14 @@ None yet.
 **Phase 2 progress:**
 - Plan 02-01 complete: Phase segmentation with velocity-based detection
 - Plan 02-02 complete: Kinetic chain timing and contact frame features (P0 features)
-- P0 features add ~20 features (7 kinetic + 8 contact + 6 intent)
-- Current feature count: ~328-335 (v2: 308-315 + P0: 20)
-- Must apply feature selection to reach <254 target (N_train/10 rule)
+- Plan 02-03 complete: Angular velocity and phase-specific features (P1 features)
+- P0 features: ~20 features (7 kinetic + 8 contact + 6 intent)
+- P1 features: ~32 features (6 angular + 4 racket + 20 phase + 2 deceleration)
+- Current feature count: ~360-367 (v2: 308-315 + P0: 20 + P1: 32)
+- Feature selection (Plan 02-04) CRITICAL to reduce to <254 target (N_train/10 rule)
 - Batch validation (85%+ pass rate) pending real dataset test in Colab
 - Handedness detection assumes overhead strokes (may need refinement)
-- Drop shot biomechanics has limited research literature
+- Deceleration features may have low Cohen's d for Clear vs Smash (dataset is Clear+Smash only)
 
 **Phase 3 readiness:**
 - Train-test split must prevent player leakage (same player in both sets)
@@ -109,10 +117,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-30T15:27:35Z
-Stopped at: Completed 02-02-PLAN.md (Kinetic Chain Timing and Contact Frame Features) - Phase 2 in progress (2/9 plans)
+Last session: 2026-01-30T15:36:02Z
+Stopped at: Completed 02-03-PLAN.md (P1 Features: Angular Velocity and Phase-Specific Extraction) - Phase 2 in progress (3/9 plans)
 Resume file: None
-Next: 02-03-PLAN.md (Phase-Specific Features) or feature selection planning
+Next: 02-04-PLAN.md (Feature Selection Pipeline) - CRITICAL for reducing ~360 features to <254
 
 ---
 
