@@ -1,0 +1,8 @@
+{
+  "version": "v3",
+  "selection_date": null,
+  "selection_method": "filter_then_wrapper",
+  "n_features": 0,
+  "note": "Placeholder - run feature_selection_pipeline to populate with actual selected features from dataset",
+  "selected_features": []
+}
