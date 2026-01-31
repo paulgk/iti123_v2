@@ -1,8 +1,20 @@
 # Notebooks
 
-Jupyter notebooks for Phase 2 validation and analysis.
+Jupyter notebooks for complete project workflow - from pose extraction to production deployment.
 
-## Phase 2 Validation
+## Overview
+
+This directory contains interactive Jupyter notebooks for each project phase:
+
+- **Phase 2**: Feature engineering validation
+- **Phase 3**: Model training and evaluation
+- **Phase 4**: Production integration
+
+Each notebook provides step-by-step guidance with checkpoints, expected outputs, and troubleshooting.
+
+---
+
+## Phase 2: Feature Engineering Validation
 
 ### [phase2_validation_colab.ipynb](phase2_validation_colab.ipynb)
 
@@ -49,15 +61,95 @@ source colab_venv/bin/activate
 
 ---
 
-## Other Notebooks
+---
 
-### [phase2_validation_workflow.md](phase2_validation_workflow.md)
+## Phase 3: Model Training & Evaluation
 
-Markdown version of the workflow with command-line instructions.
+### [phase3_model_training_colab.ipynb](phase3_model_training_colab.ipynb)
+
+**Purpose:** Train Random Forest, SVM, and LSTM models on enhanced v3 features
+
+**Duration:** ~2-4 hours
+
+**Prerequisites:**
+- Phase 2 complete (feature selection done)
+- `data/processed/features_v3/selected_features.json` populated
+- Selected features <254
+
+**What it trains:**
+1. ✅ Random Forest classifier
+2. ✅ SVM classifier with RBF kernel
+3. ✅ Cross-validation with player stratification
+4. ✅ Model comparison and selection
+
+**Sections:**
+- **Step 1**: Load data and extract features (15-30 min)
+- **Step 2**: Train-test split with player stratification (5 min)
+- **Step 3**: Train Random Forest (10-20 min)
+- **Step 4**: Train SVM (10-20 min)
+- **Step 5**: Compare models (5 min)
+- **Step 6**: Save models (5 min)
+- **Step 7**: Upload to GCS (10 min)
+- **Step 8**: Generate summary (2 min)
+
+**Expected outputs:**
+- `models/v3/random_forest_*.pkl` - Trained Random Forest
+- `models/v3/svm_*.pkl` - Trained SVM
+- `models/v3/model_metadata_*.json` - Model performance metrics
+- `outputs/reports/model_comparison.png` - Visual comparison
+- Test accuracy >70%, F1 >0.75
 
 ---
 
-## Quick Start
+## Phase 4: Production Integration
+
+### [phase4_production_integration_colab.ipynb](phase4_production_integration_colab.ipynb)
+
+**Purpose:** Integrate trained ML models into Streamlit production interface
+
+**Duration:** ~1-2 hours
+
+**Prerequisites:**
+- Phase 3 complete (models trained)
+- Models in `models/v3/`
+- Test accuracy >70%
+
+**What it integrates:**
+1. ✅ Model loading system with caching
+2. ✅ ML classifier with confidence routing
+3. ✅ Dual-mode analyzer (ML + benchmark fallback)
+4. ✅ Streamlit configuration
+5. ✅ Unit tests
+
+**Sections:**
+- **Step 1**: Verify trained models (5 min)
+- **Step 2**: Create model loading system (15 min)
+- **Step 3**: Create ML classifier (20 min)
+- **Step 4**: Create dual-mode analyzer (15 min)
+- **Step 5**: Update Streamlit interface (20 min)
+- **Step 6**: Create unit tests (10 min)
+- **Step 7**: Generate summary (2 min)
+
+**Expected outputs:**
+- `src/models/model_loader.py` - Model loading with caching
+- `src/models/ml_classifier.py` - ML classification with confidence routing
+- `src/models/dual_mode_analyzer.py` - Dual-mode system
+- `docs/streamlit_integration_guide.md` - Integration instructions
+- `tests/test_production_integration.py` - Unit tests
+
+---
+
+## Other Resources
+
+### [phase2_validation_workflow.md](phase2_validation_workflow.md)
+
+Markdown version of Phase 2 workflow with command-line instructions.
+
+---
+
+## Quick Start - Complete Workflow
+
+### Phase 2: Feature Engineering Validation
 
 1. **Extract poses** (in Colab terminal):
    ```bash
@@ -69,7 +161,7 @@ Markdown version of the workflow with command-line instructions.
        --num-workers 4
    ```
 
-2. **Run validation notebook** (in Colab):
+2. **Run Phase 2 notebook**:
    - Open `phase2_validation_colab.ipynb`
    - Run all cells sequentially
    - Check for ✅ checkpoints after each step
@@ -79,10 +171,29 @@ Markdown version of the workflow with command-line instructions.
    - Phase 2 summary: `outputs/reports/phase2_validation_summary.txt`
    - Feature manifest: `data/processed/features_v3/selected_features.json`
 
-4. **Proceed to Phase 3**:
-   ```bash
-   /gsd:plan-phase 3
-   ```
+### Phase 3: Model Training
+
+1. **Run Phase 3 notebook**:
+   - Open `phase3_model_training_colab.ipynb`
+   - Run all cells sequentially
+   - Wait for training to complete (~2-4 hours)
+
+2. **Review results**:
+   - Model comparison: `outputs/reports/model_comparison.png`
+   - Model metadata: `models/v3/model_metadata_*.json`
+   - Phase 3 summary: `outputs/reports/phase3_training_summary.txt`
+
+### Phase 4: Production Integration
+
+1. **Run Phase 4 notebook**:
+   - Open `phase4_production_integration_colab.ipynb`
+   - Run all cells sequentially
+   - Create production modules
+
+2. **Integrate into Streamlit**:
+   - Follow guide: `docs/streamlit_integration_guide.md`
+   - Test locally
+   - Deploy to production
 
 ---
 
@@ -115,10 +226,43 @@ Markdown version of the workflow with command-line instructions.
 
 ```
 notebooks/
-├── README.md                           # This file
-├── phase2_validation_colab.ipynb       # Main validation notebook
-└── phase2_validation_workflow.md       # Command-line workflow
+├── README.md                                    # This file
+├── phase2_validation_colab.ipynb                # Phase 2: Feature validation
+├── phase3_model_training_colab.ipynb            # Phase 3: Model training
+├── phase4_production_integration_colab.ipynb    # Phase 4: Production integration
+└── phase2_validation_workflow.md                # Command-line workflow reference
 ```
+
+## Progress Tracking
+
+Each notebook has built-in checkpoints:
+
+**Phase 2 Checkpoints:**
+1. ✅ Extraction results verified
+2. ✅ Validation suite completed
+3. ✅ Feature selection completed
+4. ✅ Feature extraction verified
+5. ✅ Results uploaded to GCS
+6. ✅ Summary generated
+
+**Phase 3 Checkpoints:**
+1. ✅ Features extracted
+2. ✅ Train-test split complete
+3. ✅ Random Forest trained
+4. ✅ SVM trained
+5. ✅ Model comparison complete
+6. ✅ Models saved
+7. ✅ Results uploaded to GCS
+8. ✅ Summary generated
+
+**Phase 4 Checkpoints:**
+1. ✅ Models verified
+2. ✅ Model loader created
+3. ✅ ML classifier created
+4. ✅ Dual-mode system created
+5. ✅ Streamlit integration prepared
+6. ✅ Unit tests created
+7. ✅ Summary generated
 
 ---
 
