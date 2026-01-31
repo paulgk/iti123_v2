@@ -32,7 +32,7 @@ mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
 
-def extract_pose_from_video(video_path, min_confidence=0.5, target_fps=30):
+def extract_pose_from_video(video_path, min_confidence=0.5, target_fps=30, model_complexity=2):
     """
     Extract pose landmarks from a single video file
 
@@ -40,6 +40,7 @@ def extract_pose_from_video(video_path, min_confidence=0.5, target_fps=30):
         video_path: Path to video file
         min_confidence: Minimum detection confidence (0-1)
         target_fps: Target frames per second for extraction
+        model_complexity: 0=lite (fastest), 1=full (balanced), 2=heavy (most accurate)
 
     Returns:
         pose_sequence: numpy array of shape (n_frames, 33, 3)
@@ -65,9 +66,11 @@ def extract_pose_from_video(video_path, min_confidence=0.5, target_fps=30):
 
     with mp_pose.Pose(
         static_image_mode=False,
-        model_complexity=2,  # 0=lite, 1=full, 2=heavy (best accuracy)
+        model_complexity=model_complexity,  # 0=lite (fastest), 1=full, 2=heavy (most accurate)
         min_detection_confidence=min_confidence,
-        min_tracking_confidence=min_confidence
+        min_tracking_confidence=min_confidence,
+        enable_segmentation=False,  # Disable segmentation for speed
+        smooth_landmarks=True  # Enable temporal smoothing
     ) as pose:
 
         frame_idx = 0
@@ -168,7 +171,7 @@ def infer_player_id_from_path(video_path):
 
 
 def process_all_videos(video_dir, output_dir, target_fps=30, min_confidence=0.5,
-                       create_metadata=True, verbose=False):
+                       model_complexity=2, create_metadata=True, verbose=False):
     """
     Process all videos in directory and extract pose sequences
 
@@ -218,7 +221,8 @@ def process_all_videos(video_dir, output_dir, target_fps=30, min_confidence=0.5,
             pose_sequence, metadata = extract_pose_from_video(
                 video_path,
                 min_confidence=min_confidence,
-                target_fps=target_fps
+                target_fps=target_fps,
+                model_complexity=model_complexity
             )
 
             # Save pose sequence
@@ -302,6 +306,8 @@ def main():
                        help='Target FPS for extraction (default: 30)')
     parser.add_argument('--min-confidence', type=float, default=0.5,
                        help='Minimum detection confidence (default: 0.5)')
+    parser.add_argument('--model-complexity', type=int, default=2, choices=[0, 1, 2],
+                       help='Model complexity: 0=lite (fastest), 1=full, 2=heavy (default: 2, most accurate)')
     parser.add_argument('--create-metadata', action='store_true', default=True,
                        help='Create metadata.csv automatically')
     parser.add_argument('--verbose', action='store_true',
@@ -319,12 +325,26 @@ def main():
     print(f"Min confidence: {args.min_confidence}")
     print()
 
+    # Check for GPU
+    try:
+        import tensorflow as tf
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            print(f"✓ GPU detected: {len(gpus)} device(s)")
+            print(f"  MediaPipe will automatically use GPU acceleration")
+        else:
+            print("ℹ️  No GPU detected - using CPU")
+            print("  Consider switching to GPU runtime for 5-10x speedup")
+    except:
+        pass
+
     # Process videos
     results, metadata_path = process_all_videos(
         args.video_dir,
         args.output_dir,
         target_fps=args.target_fps,
         min_confidence=args.min_confidence,
+        model_complexity=args.model_complexity,
         create_metadata=args.create_metadata,
         verbose=args.verbose
     )
