@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+"""
+Parallel MediaPipe Pose Extraction
+
+Uses multiprocessing to extract poses from multiple videos simultaneously.
+Much faster than sequential processing.
+
+Usage:
+    python scripts/extract_poses_parallel.py \
+        --video-dir data/videos/ \
+        --output-dir data/processed/poses/ \
+        --num-workers 4
+
+Recommended workers:
+    - CPU: 2-4 workers
+    - GPU: 1-2 workers (MediaPipe GPU support limited)
+"""
+
+import argparse
+import os
+import pickle
+from pathlib import Path
+from datetime import datetime
+import cv2
+import mediapipe as mp
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
+import sys
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# MediaPipe setup
+mp_pose = mp.solutions.pose
+
+
+def extract_pose_from_video(args):
+    """
+    Wrapper for multiprocessing - takes tuple of arguments
+    """
+    video_path, output_dir, target_fps, min_confidence, model_complexity = args
+
+    try:
+        # Generate output filename
+        video_name = Path(video_path).stem
+        output_path = Path(output_dir) / f"{video_name}_pose.pkl"
+
+        # Skip if already exists
+        if output_path.exists():
+            return {'status': 'skipped', 'video': video_name}
+
+        # Open video
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return {'status': 'error', 'video': video_name, 'error': 'Cannot open video'}
+
+        # Get video properties
+        original_fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_skip = max(1, int(original_fps / target_fps))
+
+        pose_sequence = []
+
+        # Process with MediaPipe
+        with mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=model_complexity,
+            min_detection_confidence=min_confidence,
+            min_tracking_confidence=min_confidence,
+            enable_segmentation=False,
+            smooth_landmarks=True
+        ) as pose:
+
+            frame_idx = 0
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                # Sample frames
+                if frame_idx % frame_skip == 0:
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = pose.process(frame_rgb)
+
+                    if results.pose_landmarks:
+                        landmarks = [[lm.x, lm.y, lm.visibility]
+                                   for lm in results.pose_landmarks.landmark]
+                        pose_sequence.append(landmarks)
+
+                frame_idx += 1
+
+        cap.release()
+
+        if len(pose_sequence) == 0:
+            return {'status': 'error', 'video': video_name, 'error': 'No poses detected'}
+
+        # Save pose sequence
+        pose_array = np.array(pose_sequence, dtype=np.float32)
+        with open(output_path, 'wb') as f:
+            pickle.dump(pose_array, f)
+
+        # Infer stroke type from path
+        path_parts = Path(video_path).parts
+        stroke_type = 'unknown'
+        for part in path_parts:
+            part_lower = part.lower()
+            if 'clear' in part_lower:
+                stroke_type = 'clear'
+                break
+            elif 'smash' in part_lower:
+                stroke_type = 'smash'
+                break
+
+        # Infer player ID
+        filename = Path(video_path).stem
+        parts = filename.split('_')
+        player_id = parts[0] if parts else filename
+
+        return {
+            'status': 'success',
+            'video_id': video_name,
+            'video_path': str(video_path),
+            'pose_file': str(output_path.relative_to(Path(output_dir).parent.parent)),
+            'stroke_type': stroke_type,
+            'player_id': player_id,
+            'extracted_frames': len(pose_sequence)
+        }
+
+    except Exception as e:
+        return {'status': 'error', 'video': Path(video_path).name, 'error': str(e)}
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Parallel pose extraction')
+    parser.add_argument('--video-dir', type=str, required=True)
+    parser.add_argument('--output-dir', type=str, required=True)
+    parser.add_argument('--target-fps', type=int, default=30)
+    parser.add_argument('--min-confidence', type=float, default=0.5)
+    parser.add_argument('--model-complexity', type=int, default=1, choices=[0, 1, 2])
+    parser.add_argument('--num-workers', type=int, default=None,
+                       help='Number of parallel workers (default: CPU count - 1)')
+
+    args = parser.parse_args()
+
+    # Determine number of workers
+    if args.num_workers is None:
+        args.num_workers = max(1, cpu_count() - 1)
+
+    print(f"\n{'='*60}")
+    print(f"PARALLEL MEDIAPIPE POSE EXTRACTION")
+    print(f"{'='*60}")
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Workers: {args.num_workers}")
+    print(f"Model complexity: {args.model_complexity}")
+    print()
+
+    # Find all videos
+    video_extensions = ['.mp4', '.avi', '.mov', '.MP4', '.AVI', '.MOV']
+    video_files = []
+    for ext in video_extensions:
+        video_files.extend(Path(args.video_dir).rglob(f'*{ext}'))
+
+    print(f"Found {len(video_files)} video files")
+
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Prepare arguments for each video
+    task_args = [(str(vf), args.output_dir, args.target_fps,
+                  args.min_confidence, args.model_complexity)
+                 for vf in video_files]
+
+    # Process in parallel
+    results = []
+    with Pool(processes=args.num_workers) as pool:
+        for result in tqdm(pool.imap_unordered(extract_pose_from_video, task_args),
+                          total=len(video_files),
+                          desc="Extracting poses"):
+            results.append(result)
+
+    # Collect statistics
+    successful = [r for r in results if r['status'] == 'success']
+    skipped = [r for r in results if r['status'] == 'skipped']
+    failed = [r for r in results if r['status'] == 'error']
+
+    print(f"\n{'='*60}")
+    print(f"EXTRACTION COMPLETE")
+    print(f"{'='*60}")
+    print(f"Total videos: {len(video_files)}")
+    print(f"Successfully processed: {len(successful)}")
+    print(f"Skipped (already exist): {len(skipped)}")
+    print(f"Failed: {len(failed)}")
+
+    # Save metadata
+    if successful:
+        df = pd.DataFrame(successful)
+        metadata_path = Path(args.output_dir).parent.parent / 'data' / 'metadata.csv'
+        os.makedirs(metadata_path.parent, exist_ok=True)
+        df.to_csv(metadata_path, index=False)
+        print(f"\n✓ Metadata saved: {metadata_path}")
+        print(f"\nStroke distribution:")
+        print(df['stroke_type'].value_counts())
+
+    if failed:
+        print(f"\n⚠️  {len(failed)} failures:")
+        for f in failed[:10]:
+            print(f"  {f['video']}: {f['error']}")
+        if len(failed) > 10:
+            print(f"  ... and {len(failed)-10} more")
+
+    print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+
+if __name__ == '__main__':
+    main()
