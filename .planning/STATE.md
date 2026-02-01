@@ -89,7 +89,8 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+1 pending todo:
+- Organize GCS videos into stroke type folders (data-preparation)
 
 ### Blockers/Concerns
 
