@@ -4,13 +4,47 @@ Jupyter notebooks for complete project workflow - from pose extraction to produc
 
 ## Overview
 
-This directory contains interactive Jupyter notebooks for each project phase:
+This directory contains interactive Jupyter notebooks for the complete project workflow:
 
+- **Complete Workflow**: All phases in one notebook (recommended for first-time users)
 - **Phase 2**: Feature engineering validation
 - **Phase 3**: Model training and evaluation
 - **Phase 4**: Production integration
 
 Each notebook provides step-by-step guidance with checkpoints, expected outputs, and troubleshooting.
+
+---
+
+## 🌟 Complete Workflow (Recommended)
+
+### [complete_workflow_colab.ipynb](complete_workflow_colab.ipynb)
+
+**Purpose:** End-to-end workflow from Colab setup to production in one notebook
+
+**Duration:** ~8-12 hours (mostly automated)
+
+**What it covers:**
+- ✅ Phase 1: Colab & GCS setup (10-20 min)
+- ✅ Phase 2: Pose extraction & feature validation (3-5 hours)
+- ✅ Phase 3: Model training & evaluation (2-4 hours)
+- ✅ Phase 4: Production integration (30-60 min)
+
+**Perfect for:**
+- First-time users wanting complete workflow
+- All-in-one execution
+- Minimal context switching
+- Full automation from start to finish
+
+**Prerequisites:**
+- Google Cloud account with GCS bucket created
+- Service account JSON key
+- Videos uploaded to `gs://YOUR_BUCKET/videos/clips/`
+
+**What you get:**
+- ML models with 70-80%+ accuracy (baseline: 45%)
+- 187 coach-informed biomechanical features
+- Production-ready integration code
+- Complete documentation and reports
 
 ---
 
