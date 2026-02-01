@@ -21,9 +21,23 @@ from tqdm import tqdm
 
 
 def infer_stroke_type_from_path(video_path):
-    """Infer stroke type from video path"""
-    path_parts = Path(video_path).parts
+    """Infer stroke type from video path or filename"""
+    import re
 
+    path_parts = Path(video_path).parts
+    filename = Path(video_path).name.lower()
+
+    # Primary pattern: Check filename ending (e.g., _clear.mp4, _smash.mp4)
+    if re.search(r'_clear\.', filename):
+        return 'clear'
+    elif re.search(r'_smash\.', filename):
+        return 'smash'
+    elif re.search(r'_drop\.', filename):
+        return 'drop'
+    elif re.search(r'_lift\.', filename):
+        return 'lift'
+
+    # Fallback: Check directory path
     for part in path_parts:
         part_lower = part.lower()
         if 'clear' in part_lower:

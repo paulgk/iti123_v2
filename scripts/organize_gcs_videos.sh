@@ -61,7 +61,17 @@ detect_stroke_type() {
     local filename_lower=$(echo "$filename" | tr '[:upper:]' '[:lower:]')
 
     # Pattern matching (in priority order)
-    if echo "$filename_lower" | grep -qE '\bclear\b|\\bclr\b|_c_|_c[0-9]+'; then
+    # Primary pattern: _Clear.mp4, _Smash.mp4, _Drop.mp4, _Lift.mp4 (actual format in GCS)
+    if echo "$filename" | grep -qE '_Clear\.mp4$|_clear\.mp4$'; then
+        echo "clear"
+    elif echo "$filename" | grep -qE '_Smash\.mp4$|_smash\.mp4$'; then
+        echo "smash"
+    elif echo "$filename" | grep -qE '_Drop\.mp4$|_drop\.mp4$'; then
+        echo "drop"
+    elif echo "$filename" | grep -qE '_Lift\.mp4$|_lift\.mp4$'; then
+        echo "lift"
+    # Fallback patterns for other naming conventions
+    elif echo "$filename_lower" | grep -qE '\bclear\b|\bclr\b|_c_|_c[0-9]+'; then
         echo "clear"
     elif echo "$filename_lower" | grep -qE '\bsmash\b|\bsmsh\b|_s_|_s[0-9]+'; then
         echo "smash"

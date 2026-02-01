@@ -32,42 +32,60 @@ bash scripts/organize_gcs_videos.sh gs://iti123storage/videos/clips --execute
 
 The scripts automatically detect stroke types from these patterns:
 
-| Stroke | Example Filenames |
-|--------|------------------|
-| **Clear** | `player1_clear_001.mp4`, `match_clr_03.mp4`, `vid_c_12.mp4` |
-| **Smash** | `player2_smash_005.mp4`, `game_smsh_07.mp4`, `clip_s_25.mp4` |
-| **Drop** | `rally_drop_002.mp4`, `shot_drp_04.mp4`, `play_d_18.mp4` |
-| **Lift** | `defense_lift_003.mp4`, `rally_lft_09.mp4`, `clip_l_31.mp4` |
+| Stroke | Example Filenames (Actual Format) |
+|--------|----------------------------------|
+| **Clear** | `01_set1_rally11_ball19_Clear.mp4`, `02_set2_rally05_ball08_Clear.mp4` |
+| **Smash** | `01_set1_rally10_ball15_Smash.mp4`, `03_set1_rally13_ball06_Smash.mp4` |
+| **Drop** | `01_set1_rally10_ball10_Drop.mp4`, `02_set3_rally14_ball13_Drop.mp4` |
+| **Lift** | `01_set1_rally10_ball12_Lift.mp4`, `04_set2_rally11_ball11_Lift.mp4` |
 
-Detection is **case-insensitive** and looks for these patterns:
-- Full words: `clear`, `smash`, `drop`, `lift`
-- Abbreviations: `clr`, `smsh`, `drp`, `lft`
-- Delimited codes: `_c_`, `_s_`, `_d_`, `_l_`
-- Numbered codes: `_c001`, `_s042`, etc.
+**Your actual GCS dataset contains:**
+- 4,641 Smash videos
+- 3,179 Drop videos
+- 2,662 Clear videos
+- 573 Lift videos
+- **Total: 11,055 videos**
+
+Detection is **case-insensitive** and looks for these patterns (in priority order):
+
+1. **Primary pattern** (matches your actual files):
+   - `_Clear.mp4`, `_Smash.mp4`, `_Drop.mp4`, `_Lift.mp4` at end of filename
+
+2. **Fallback patterns** (for other naming conventions):
+   - Full words: `clear`, `smash`, `drop`, `lift`
+   - Abbreviations: `clr`, `smsh`, `drp`, `lft`
+   - Delimited codes: `_c_`, `_s_`, `_d_`, `_l_`
+   - Numbered codes: `_c001`, `_s042`, etc.
 
 ## Expected Output
 
 ### Before Organization
 ```
 gs://iti123storage/videos/clips/
-├── player1_clear_001.mp4
-├── player1_smash_001.mp4
-├── player2_clear_002.mp4
-├── player2_smash_002.mp4
-└── ... (11,000+ files)
+├── 01_set1_rally10_ball10_Drop.mp4
+├── 01_set1_rally10_ball12_Lift.mp4
+├── 01_set1_rally10_ball15_Smash.mp4
+├── 01_set1_rally11_ball19_Clear.mp4
+├── 01_set1_rally11_ball20_Clear.mp4
+└── ... (11,055 files total)
 ```
 
 ### After Organization
 ```
 gs://iti123storage/videos/clips/
 ├── clear/
-│   ├── player1_clear_001.mp4
-│   ├── player2_clear_002.mp4
-│   └── ... (5,500+ files)
-└── smash/
-    ├── player1_smash_001.mp4
-    ├── player2_smash_002.mp4
-    └── ... (5,500+ files)
+│   ├── 01_set1_rally11_ball19_Clear.mp4
+│   ├── 01_set1_rally11_ball20_Clear.mp4
+│   └── ... (2,662 files)
+├── smash/
+│   ├── 01_set1_rally10_ball15_Smash.mp4
+│   └── ... (4,641 files)
+├── drop/
+│   ├── 01_set1_rally10_ball10_Drop.mp4
+│   └── ... (3,179 files)
+└── lift/
+    ├── 01_set1_rally10_ball12_Lift.mp4
+    └── ... (573 files)
 ```
 
 ## Safety Features

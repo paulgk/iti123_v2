@@ -33,36 +33,49 @@ python scripts/organize_videos.py --input data/videos/clips --move
 
 The scripts detect stroke types from filenames using these patterns:
 
-| Stroke | Pattern Examples |
-|--------|-----------------|
-| **Clear** | `clear`, `clr`, `_c_`, `_c001` |
-| **Smash** | `smash`, `smsh`, `_s_`, `_s001` |
-| **Drop** | `drop`, `drp`, `_d_`, `_d001` |
-| **Lift** | `lift`, `lft`, `_l_`, `_l001` |
+**Your Dataset (11,055 videos in `gs://iti123storage/videos/clips/`):**
+- 4,641 Smash videos (format: `*_Smash.mp4`)
+- 3,179 Drop videos (format: `*_Drop.mp4`)
+- 2,662 Clear videos (format: `*_Clear.mp4`)
+- 573 Lift videos (format: `*_Lift.mp4`)
+
+| Stroke | Primary Pattern | Fallback Patterns |
+|--------|----------------|-------------------|
+| **Clear** | `_Clear.mp4` | `clear`, `clr`, `_c_`, `_c001` |
+| **Smash** | `_Smash.mp4` | `smash`, `smsh`, `_s_`, `_s001` |
+| **Drop** | `_Drop.mp4` | `drop`, `drp`, `_d_`, `_d001` |
+| **Lift** | `_Lift.mp4` | `lift`, `lft`, `_l_`, `_l001` |
 | **Unknown** | Files that don't match any pattern |
 
-Detection is case-insensitive and uses word boundaries or delimiters.
+Detection is case-insensitive. The scripts check the primary pattern first (exact match at end of filename), then fallback to alternative patterns.
 
 ### File Organization
 
 Before:
 ```
-gs://bucket/videos/clips/
-  player1_clear_001.mp4
-  player1_smash_001.mp4
-  player2_c_001.mp4
-  player2_s_001.mp4
+gs://iti123storage/videos/clips/
+  01_set1_rally10_ball10_Drop.mp4
+  01_set1_rally10_ball12_Lift.mp4
+  01_set1_rally10_ball15_Smash.mp4
+  01_set1_rally11_ball19_Clear.mp4
+  ... (11,055 files)
 ```
 
 After:
 ```
-gs://bucket/videos/clips/
+gs://iti123storage/videos/clips/
   clear/
-    player1_clear_001.mp4
-    player2_c_001.mp4
+    01_set1_rally11_ball19_Clear.mp4
+    ... (2,662 files)
   smash/
-    player1_smash_001.mp4
-    player2_s_001.mp4
+    01_set1_rally10_ball15_Smash.mp4
+    ... (4,641 files)
+  drop/
+    01_set1_rally10_ball10_Drop.mp4
+    ... (3,179 files)
+  lift/
+    01_set1_rally10_ball12_Lift.mp4
+    ... (573 files)
 ```
 
 ## Scripts Available

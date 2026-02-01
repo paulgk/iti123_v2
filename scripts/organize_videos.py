@@ -38,14 +38,25 @@ def detect_stroke_type(filename: str) -> str:
     Detect stroke type from filename
 
     Args:
-        filename: Video filename (e.g., "player1_clear_001.mp4")
+        filename: Video filename (e.g., "01_set1_rally10_ball10_Drop.mp4")
 
     Returns:
         Stroke type: 'clear', 'smash', 'drop', 'lift', or 'unknown'
     """
     filename_lower = filename.lower()
 
-    # Pattern matching (in priority order)
+    # Primary pattern: _Clear.mp4, _Smash.mp4, _Drop.mp4, _Lift.mp4 (actual format in GCS)
+    # Check exact ending patterns first (case-insensitive)
+    if re.search(r'_clear\.mp4$', filename_lower):
+        return 'clear'
+    elif re.search(r'_smash\.mp4$', filename_lower):
+        return 'smash'
+    elif re.search(r'_drop\.mp4$', filename_lower):
+        return 'drop'
+    elif re.search(r'_lift\.mp4$', filename_lower):
+        return 'lift'
+
+    # Fallback patterns for other naming conventions
     patterns = {
         'clear': [r'\bclear\b', r'\bclr\b', r'_c_', r'_c\d+'],
         'smash': [r'\bsmash\b', r'\bsmsh\b', r'_s_', r'_s\d+'],
