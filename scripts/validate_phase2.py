@@ -189,7 +189,8 @@ def validate_kinetic_chain_effect_sizes(metadata, sample_size=100):
             print(f"  {col:40s} ERROR: {e}")
             all_pass = False
 
-    print(f"\nStatus: {'✓ PASS - All features meet Cohen\\'s d > 0.5' if all_pass else '✗ FAIL - Some features below threshold'}")
+    status_msg = "✓ PASS - All features meet Cohen's d > 0.5" if all_pass else "✗ FAIL - Some features below threshold"
+    print(f"\nStatus: {status_msg}")
 
     return all_pass
 
