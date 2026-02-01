@@ -129,25 +129,53 @@ FILE_COUNT=$(echo "$FILTERED_FILES" | wc -l | tr -d ' ')
 echo -e "${GREEN}Found $FILE_COUNT video files to organize${NC}"
 echo ""
 
-# Categorize files
-declare -A categorized
-categorized[clear]=""
-categorized[smash]=""
-categorized[drop]=""
-categorized[lift]=""
-categorized[unknown]=""
+# Categorize files using temporary files instead of associative arrays
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
+clear_files="$TEMP_DIR/clear.txt"
+smash_files="$TEMP_DIR/smash.txt"
+drop_files="$TEMP_DIR/drop.txt"
+lift_files="$TEMP_DIR/lift.txt"
+unknown_files="$TEMP_DIR/unknown.txt"
+
+touch "$clear_files" "$smash_files" "$drop_files" "$lift_files" "$unknown_files"
 
 while IFS= read -r video_file; do
     filename=$(basename "$video_file")
     stroke_type=$(detect_stroke_type "$filename")
 
-    categorized[$stroke_type]="${categorized[$stroke_type]}${video_file}"$'\n'
+    case "$stroke_type" in
+        clear)
+            echo "$video_file" >> "$clear_files"
+            ;;
+        smash)
+            echo "$video_file" >> "$smash_files"
+            ;;
+        drop)
+            echo "$video_file" >> "$drop_files"
+            ;;
+        lift)
+            echo "$video_file" >> "$lift_files"
+            ;;
+        unknown)
+            echo "$video_file" >> "$unknown_files"
+            ;;
+    esac
 done <<< "$FILTERED_FILES"
 
 # Show distribution
 echo "Detected stroke types:"
 for stroke_type in clear smash drop lift unknown; do
-    count=$(echo "${categorized[$stroke_type]}" | sed '/^$/d' | wc -l | tr -d ' ')
+    case "$stroke_type" in
+        clear) file_list="$clear_files" ;;
+        smash) file_list="$smash_files" ;;
+        drop) file_list="$drop_files" ;;
+        lift) file_list="$lift_files" ;;
+        unknown) file_list="$unknown_files" ;;
+    esac
+
+    count=$(cat "$file_list" | wc -l | tr -d ' ')
     if [ "$count" -gt 0 ]; then
         printf "  %-8s: %4d files\n" "$stroke_type" "$count"
     fi
@@ -158,18 +186,27 @@ echo ""
 total_moved=0
 
 for stroke_type in clear smash drop lift unknown; do
-    files="${categorized[$stroke_type]}"
-    files=$(echo "$files" | sed '/^$/d')
+    case "$stroke_type" in
+        clear) file_list="$clear_files" ;;
+        smash) file_list="$smash_files" ;;
+        drop) file_list="$drop_files" ;;
+        lift) file_list="$lift_files" ;;
+        unknown) file_list="$unknown_files" ;;
+    esac
 
-    if [ -z "$files" ]; then
+    count=$(cat "$file_list" | wc -l | tr -d ' ')
+
+    if [ "$count" -eq 0 ]; then
         continue
     fi
-
-    count=$(echo "$files" | wc -l | tr -d ' ')
 
     echo -e "${BLUE}Processing $stroke_type ($count files)...${NC}"
 
     while IFS= read -r video_file; do
+        if [ -z "$video_file" ]; then
+            continue
+        fi
+
         filename=$(basename "$video_file")
         dest_path="${GCS_PATH}/${stroke_type}/${filename}"
 
@@ -179,12 +216,12 @@ for stroke_type in clear smash drop lift unknown; do
             # Execute the move
             if gsutil mv "$video_file" "$dest_path" 2>/dev/null; then
                 echo -e "${GREEN}✓${NC} Moved: $filename -> ${stroke_type}/"
-                ((total_moved++))
+                total_moved=$((total_moved + 1))
             else
                 echo -e "${RED}✗${NC} Error: Failed to move $filename"
             fi
         fi
-    done <<< "$files"
+    done < "$file_list"
 
     echo ""
 done
@@ -196,7 +233,15 @@ echo "================================================================="
 echo "Total files processed: $FILE_COUNT"
 
 for stroke_type in clear smash drop lift unknown; do
-    count=$(echo "${categorized[$stroke_type]}" | sed '/^$/d' | wc -l | tr -d ' ')
+    case "$stroke_type" in
+        clear) file_list="$clear_files" ;;
+        smash) file_list="$smash_files" ;;
+        drop) file_list="$drop_files" ;;
+        lift) file_list="$lift_files" ;;
+        unknown) file_list="$unknown_files" ;;
+    esac
+
+    count=$(cat "$file_list" | wc -l | tr -d ' ')
     if [ "$count" -gt 0 ]; then
         printf "  %-8s: %4d files\n" "$stroke_type" "$count"
     fi
