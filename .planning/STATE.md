@@ -93,6 +93,13 @@ None yet.
 
 ### Blockers/Concerns
 
+**Dataset Scope Decision (2026-02-01):**
+- Phases 1-4 focus ONLY on Clear and Smash overhead shots (7,303 videos)
+  * Clear: 2,662 videos (36.4%)
+  * Smash: 4,641 videos (63.6%)
+- Drop (3,179) and Lift (573) shots deferred to Phase 5
+- Binary classification (Clear vs Smash) validates ML system before multi-class expansion
+
 **Phase 1 complete - Infrastructure Foundation:**
 - All 6 infrastructure requirements (INFRA-01 through INFRA-06) addressed
 - Git LFS configured for model versioning (Plan 01-01)
@@ -101,6 +108,7 @@ None yet.
 - Python 3.10 runtime setup for Colab (Plan 01-04)
 - Terminal script execution framework (Plan 01-04)
 - Infrastructure verification tools in place (Plan 01-04)
+- **Scope:** Clear and Smash videos only for Phases 1-4
 
 **Known issues:**
 - Git LFS bandwidth limits (1GB/month free tier) - use Git LFS only for production models
@@ -123,20 +131,30 @@ None yet.
 - Manifest-driven selection with graceful degradation (unpopulated manifest returns all features)
 - Comprehensive test suite: 67 tests across 5 modules
 - Verification status: human_needed (5/5 code checks passed, 4 require dataset validation)
+- **Scope:** Clear and Smash binary classification only (Drop/Lift deferred to Phase 5)
 
-**Phase 3 readiness:**
+**Phase 3 readiness - Clear vs Smash binary classification:**
+- Dataset: 7,303 videos (2,662 Clear + 4,641 Smash)
+- Class ratio: 1.74:1 (Smash:Clear) - acceptable for training
 - Train-test split must prevent player leakage (same player in both sets)
 - External video generalization unknown (ShuttleSet is professional players only)
 
-**Phase 4 readiness:**
+**Phase 4 readiness - Clear vs Smash production:**
 - Model-benchmark integration requires careful version compatibility management
+- Binary classification simplifies initial production deployment
+
+**Phase 5 planning - Multi-shot expansion:**
+- Add Drop (3,179 videos) and Lift (573 videos) after binary system validated
+- Class imbalance: Lift is only 5.2% of total dataset
+- User will provide video extraction instructions when ready
+- Consider 3-class (Clear, Smash, Drop) before adding underrepresented Lift
 
 ## Session Continuity
 
-Last session: 2026-01-31T00:10:00Z
-Stopped at: Completed Phase 2 execution and verification
+Last session: 2026-02-01T00:00:00Z
+Stopped at: Updated roadmap - Phases 1-4 scope limited to Clear+Smash binary classification
 Resume file: None
-Next: Phase 3 - Model Training & Evaluation
+Next: Phase 3 - Model Training & Evaluation (Clear vs Smash only, 7,303 videos)
 
 ---
 

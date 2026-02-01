@@ -4,16 +4,19 @@
 
 The v1.1 milestone transforms the current benchmark-based coaching system into an ML-powered platform with improved classification accuracy. Starting with reliable infrastructure (Git LFS, GCS, Colab Enterprise), we expand features based on biomechanics research, retrain models with improved accuracy, and integrate ML classification alongside the existing benchmark system as a dual-mode enhancement.
 
+**Scope for Phases 1-4:** Clear and Smash overhead shots only. Drop and Lift shots will be addressed in Phase 5 after initial ML system is validated.
+
 ## Phases
 
 **Phase Numbering:**
 - Integer phases (1, 2, 3, 4): Planned milestone work
 - Decimal phases (e.g., 2.1): Urgent insertions if needed
 
-- [x] **Phase 1: Infrastructure Foundation** - Establish reliable Colab workflow with GCS and Git LFS
-- [ ] **Phase 2: Feature Engineering Enhancement** - Add coach-informed biomechanical features
-- [ ] **Phase 3: Model Training & Evaluation** - Train and validate improved ML models
-- [ ] **Phase 4: Production Integration** - Integrate ML classification into production system
+- [x] **Phase 1: Infrastructure Foundation** - Establish reliable Colab workflow with GCS and Git LFS (Clear + Smash only)
+- [x] **Phase 2: Feature Engineering Enhancement** - Add coach-informed biomechanical features (Clear + Smash only)
+- [ ] **Phase 3: Model Training & Evaluation** - Train and validate improved ML models (Clear + Smash only)
+- [ ] **Phase 4: Production Integration** - Integrate ML classification into production system (Clear + Smash only)
+- [ ] **Phase 5: Multi-Shot Type Expansion** - Extract and integrate Drop and Lift shots
 
 ## Phase Details
 
@@ -31,8 +34,10 @@ The v1.1 milestone transforms the current benchmark-based coaching system into a
 - MLflow experiment tracking
 - Terminal-based script execution
 
+**Scope**: Clear and Smash overhead shots only (7,303 videos total: 2,662 Clear + 4,641 Smash)
+
 **Success Criteria** (what must be TRUE):
-1. GCS bucket is accessible from Colab Enterprise with video files uploaded
+1. GCS bucket is accessible from Colab Enterprise with Clear and Smash video files uploaded
 2. Git LFS tracks model files without exceeding bandwidth limits (under 100MB in test week)
 3. Colab runtime executes Python 3.10 terminal scripts successfully (TensorFlow 2.15 compatible)
 4. Bidirectional sync workflow completes end-to-end (clone -> edit -> commit -> push -> verify)
@@ -51,6 +56,8 @@ Plans:
 ### Phase 2: Feature Engineering Enhancement
 
 **Goal**: Add 50-150 validated biomechanical features based on coaching research to improve model discriminative power without overfitting.
+
+**Scope**: Clear and Smash overhead shots only (7,303 videos total: 2,662 Clear + 4,641 Smash)
 
 **Depends on**: Phase 1 (complete)
 
@@ -88,6 +95,8 @@ Plans:
 
 **Goal**: Train Random Forest, SVM, and LSTM models on enhanced features achieving 70%+ accuracy with proper cross-validation and regularization.
 
+**Scope**: Clear and Smash binary classification only (7,303 videos)
+
 **Depends on**: Phase 2
 
 **Requirements**: Model Training & Architecture + Validation & Metrics categories
@@ -120,6 +129,8 @@ Plans:
 
 **Goal**: Integrate trained ML models into Streamlit interface as a dual-mode system with confidence-based fallback to benchmarks.
 
+**Scope**: Clear and Smash binary classification only
+
 **Depends on**: Phase 3
 
 **Requirements**: Production Integration category
@@ -127,14 +138,14 @@ Plans:
 - ML classification as primary method
 - Model versioning and loading system
 - Streamlit integration
-- Drop and Lift shot support
+- Clear and Smash binary classification
 
 **Success Criteria** (what must be TRUE):
 1. Streamlit interface offers dual-mode analysis (benchmark default, ML optional) with single config toggle
 2. ML classification triggers only when confidence exceeds 0.85 threshold, otherwise falls back to benchmark
 3. Feature version compatibility maintains v2 (427 features) for benchmarks and v3 (expanded) for ML
 4. Model loading system selects appropriate model version based on feature set detected
-5. Drop and Lift shot classifications integrated alongside existing Clear and Smash support
+5. Clear and Smash binary classification integrated and validated in production
 
 **Plans**: TBD
 
@@ -143,18 +154,59 @@ Plans:
 
 ---
 
-## Progress
+### Phase 5: Multi-Shot Type Expansion
 
-**Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+**Goal**: Extract and integrate Drop and Lift shot data to expand from binary (Clear vs Smash) to multi-class classification.
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Infrastructure Foundation | 4/4 | Complete | 2026-01-30 |
-| 2. Feature Engineering Enhancement | 5/5 | Complete | 2026-01-31 |
-| 3. Model Training & Evaluation | 0/TBD | Not started | - |
-| 4. Production Integration | 0/TBD | Not started | - |
+**Scope**: Add Drop (3,179 videos) and Lift (573 videos) to existing Clear + Smash dataset
+
+**Depends on**: Phase 4 (Clear + Smash system validated in production)
+
+**Requirements**: Data Extraction & Multi-Class Training
+- Video clip extraction for Drop and Lift shots
+- Pose extraction for new shot types
+- Dataset rebalancing and augmentation (Lift is only 5.2% of data)
+- Multi-class model retraining (4 classes: Clear, Smash, Drop, Lift)
+- Feature engineering validation across all shot types
+- Production integration for 4-class classification
+
+**Success Criteria** (what must be TRUE):
+1. Drop and Lift video clips extracted with same quality standards as Clear and Smash
+2. Pose extraction completed for all Drop (3,179) and Lift (573) videos
+3. Multi-class models achieve >65% accuracy across all 4 shot types
+4. Class imbalance addressed (Lift is only 5.2% - consider oversampling or class weights)
+5. Production system seamlessly handles 4-class classification with same confidence thresholds
+
+**Plans**: TBD
+
+Plans:
+- [ ] TBD during phase planning (user will provide video extraction instructions)
+
+**Notes:**
+- Deferred until Clear + Smash system is validated
+- User will provide specific instructions for Drop/Lift video extraction
+- Class imbalance (Lift 5.2% vs Smash 42%) requires careful handling
+- Consider starting with 3-class (Clear, Smash, Drop) before adding Lift
 
 ---
 
-*Last updated: 2026-01-31 - Phase 2 execution complete*
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+
+**Dataset Scope:**
+- **Phases 1-4:** Clear and Smash only (7,303 videos: 2,662 Clear + 4,641 Smash)
+- **Phase 5:** Add Drop and Lift (3,179 Drop + 573 Lift = 11,055 total)
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Infrastructure Foundation (Clear+Smash) | 4/4 | Complete | 2026-01-30 |
+| 2. Feature Engineering Enhancement (Clear+Smash) | 5/5 | Complete | 2026-01-31 |
+| 3. Model Training & Evaluation (Clear+Smash) | 0/TBD | Not started | - |
+| 4. Production Integration (Clear+Smash) | 0/TBD | Not started | - |
+| 5. Multi-Shot Type Expansion (Add Drop+Lift) | 0/TBD | Not started | - |
+
+---
+
+*Last updated: 2026-02-01 - Added Phase 5 for Drop+Lift expansion; Phases 1-4 focus on Clear+Smash binary classification*
