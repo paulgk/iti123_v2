@@ -46,9 +46,19 @@ def extract_pose_from_video(args):
         video_name = Path(video_path).stem
         output_path = Path(output_dir) / f"{video_name}_pose.pkl"
 
-        # Skip if already exists
+        # Skip if already exists and is valid (non-empty)
         if output_path.exists():
-            return {'status': 'skipped', 'video': video_name}
+            # Validate file is not empty/corrupted
+            if output_path.stat().st_size > 100:  # At least 100 bytes
+                try:
+                    # Quick validation: try to load the pickle
+                    with open(output_path, 'rb') as f:
+                        _ = pickle.load(f)
+                    return {'status': 'skipped', 'video': video_name}
+                except:
+                    # File corrupted, re-extract
+                    print(f"⚠️  Corrupted pose file detected, re-extracting: {video_name}")
+                    pass
 
         # Open video
         cap = cv2.VideoCapture(str(video_path))
@@ -196,6 +206,17 @@ def main():
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # Check existing pose files
+    existing_poses = list(Path(args.output_dir).glob('*_pose.pkl'))
+    print(f"Found {len(existing_poses)} existing pose files (will skip these)")
+
+    # Estimate remaining work
+    remaining = len(video_files) - len(existing_poses)
+    if remaining > 0:
+        print(f"Estimated remaining clips to process: {remaining}")
+    else:
+        print("All clips already processed!")
+
     # Prepare arguments for each video
     task_args = [(str(vf), args.output_dir, args.target_fps,
                   args.min_confidence, args.model_complexity)
@@ -203,11 +224,21 @@ def main():
 
     # Process in parallel
     results = []
+    processed_count = 0
     with Pool(processes=args.num_workers) as pool:
         for result in tqdm(pool.imap_unordered(extract_pose_from_video, task_args),
                           total=len(video_files),
                           desc="Extracting poses"):
             results.append(result)
+            processed_count += 1
+
+            # Checkpoint progress every 100 clips
+            if processed_count % 100 == 0:
+                success_so_far = len([r for r in results if r['status'] == 'success'])
+                skipped_so_far = len([r for r in results if r['status'] == 'skipped'])
+                failed_so_far = len([r for r in results if r['status'] == 'error'])
+                print(f"\n  Checkpoint ({processed_count}/{len(video_files)}): "
+                      f"{success_so_far} new, {skipped_so_far} skipped, {failed_so_far} failed")
 
     # Collect statistics
     successful = [r for r in results if r['status'] == 'success']
@@ -222,15 +253,38 @@ def main():
     print(f"Skipped (already exist): {len(skipped)}")
     print(f"Failed: {len(failed)}")
 
-    # Save metadata
+    # Save metadata (append to existing if present)
     if successful:
-        df = pd.DataFrame(successful)
+        df_new = pd.DataFrame(successful)
         metadata_path = Path(args.output_dir).parent.parent / 'data' / 'metadata.csv'
         os.makedirs(metadata_path.parent, exist_ok=True)
-        df.to_csv(metadata_path, index=False)
-        print(f"\n✓ Metadata saved: {metadata_path}")
-        print(f"\nStroke distribution:")
-        print(df['stroke_type'].value_counts())
+
+        # Merge with existing metadata if present
+        if metadata_path.exists():
+            try:
+                df_existing = pd.read_csv(metadata_path)
+                # Remove duplicates based on video_id (keep new ones)
+                df_existing = df_existing[~df_existing['video_id'].isin(df_new['video_id'])]
+                df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+                df_combined.to_csv(metadata_path, index=False)
+                print(f"\n✓ Metadata updated: {metadata_path}")
+                print(f"  Previous entries: {len(df_existing)}")
+                print(f"  New entries: {len(df_new)}")
+                print(f"  Total entries: {len(df_combined)}")
+                print(f"\nStroke distribution:")
+                print(df_combined['stroke_type'].value_counts())
+            except Exception as e:
+                # If merge fails, just save new data
+                print(f"⚠️  Could not merge with existing metadata: {e}")
+                df_new.to_csv(metadata_path, index=False)
+                print(f"\n✓ Metadata saved (new): {metadata_path}")
+                print(f"\nStroke distribution:")
+                print(df_new['stroke_type'].value_counts())
+        else:
+            df_new.to_csv(metadata_path, index=False)
+            print(f"\n✓ Metadata saved: {metadata_path}")
+            print(f"\nStroke distribution:")
+            print(df_new['stroke_type'].value_counts())
 
     if failed:
         print(f"\n⚠️  {len(failed)} failures:")
