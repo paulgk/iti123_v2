@@ -23,6 +23,8 @@ from pathlib import Path
 from datetime import datetime
 import cv2
 import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -31,9 +33,6 @@ import sys
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# MediaPipe setup
-mp_pose = mp.solutions.pose
 
 
 def extract_pose_from_video(args):
@@ -62,35 +61,57 @@ def extract_pose_from_video(args):
 
         pose_sequence = []
 
-        # Process with MediaPipe
-        with mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=model_complexity,
-            min_detection_confidence=min_confidence,
+        # Create PoseLandmarker options for new MediaPipe API (0.10.x)
+        # Get model path from environment or use default location
+        model_path = os.environ.get('MEDIAPIPE_POSE_MODEL', 'models/mediapipe/pose_landmarker.task')
+
+        base_options = python.BaseOptions(
+            model_asset_path=model_path,
+            delegate=python.BaseOptions.Delegate.CPU
+        )
+
+        options = vision.PoseLandmarkerOptions(
+            base_options=base_options,
+            running_mode=vision.RunningMode.VIDEO,
+            num_poses=1,
+            min_pose_detection_confidence=min_confidence,
+            min_pose_presence_confidence=min_confidence,
             min_tracking_confidence=min_confidence,
-            enable_segmentation=False,
-            smooth_landmarks=True
-        ) as pose:
+            output_segmentation_masks=False
+        )
 
-            frame_idx = 0
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        # Create PoseLandmarker
+        landmarker = vision.PoseLandmarker.create_from_options(options)
 
-                # Sample frames
-                if frame_idx % frame_skip == 0:
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    results = pose.process(frame_rgb)
+        frame_idx = 0
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-                    if results.pose_landmarks:
-                        landmarks = [[lm.x, lm.y, lm.visibility]
-                                   for lm in results.pose_landmarks.landmark]
-                        pose_sequence.append(landmarks)
+            # Sample frames
+            if frame_idx % frame_skip == 0:
+                # Convert frame to MediaPipe Image format
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
 
-                frame_idx += 1
+                # Calculate timestamp in milliseconds
+                timestamp_ms = int(frame_idx * 1000 / original_fps)
+
+                # Detect pose
+                detection_result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+                if detection_result.pose_landmarks:
+                    # Extract landmarks (first pose only)
+                    landmarks_list = detection_result.pose_landmarks[0]
+                    landmarks = [[lm.x, lm.y, lm.visibility]
+                               for lm in landmarks_list]
+                    pose_sequence.append(landmarks)
+
+            frame_idx += 1
 
         cap.release()
+        landmarker.close()
 
         if len(pose_sequence) == 0:
             return {'status': 'error', 'video': video_name, 'error': 'No poses detected'}
@@ -100,16 +121,25 @@ def extract_pose_from_video(args):
         with open(output_path, 'wb') as f:
             pickle.dump(pose_array, f)
 
-        # Infer stroke type from path
+        # Infer stroke type from path (supports all 5 shot types)
         path_parts = Path(video_path).parts
         stroke_type = 'unknown'
         for part in path_parts:
             part_lower = part.lower()
-            if 'clear' in part_lower:
+            if 'smash' in part_lower:
+                stroke_type = 'smash'
+                break
+            elif 'clear' in part_lower:
                 stroke_type = 'clear'
                 break
-            elif 'smash' in part_lower:
-                stroke_type = 'smash'
+            elif 'drop' in part_lower:
+                stroke_type = 'drop'
+                break
+            elif 'lift' in part_lower:
+                stroke_type = 'lift'
+                break
+            elif 'drive' in part_lower:
+                stroke_type = 'drive'
                 break
 
         # Infer player ID
