@@ -68,11 +68,20 @@ models/*.pkl
 mlruns/
 experiments/
 
-# Outputs (keep important visualizations only)
-outputs/plots/*.png
-outputs/plots/*.jpg
-!outputs/plots/final_*.png
-outputs/reports/*.html
+# Outputs - Training results (keep reports and visualizations, exclude large model files)
+outputs/models/*.pth
+!outputs/models/*_best.pth
+outputs/logs/
+outputs/checkpoints/
+
+# Keep training reports and visualizations
+!outputs/reports/*.txt
+!outputs/reports/*.md
+!outputs/reports/*.csv
+!outputs/reports/*.json
+!outputs/visualizations/*.png
+!outputs/visualizations/*.jpg
+!outputs/visualizations/*.pdf
 
 # Temporary files
 *.tmp

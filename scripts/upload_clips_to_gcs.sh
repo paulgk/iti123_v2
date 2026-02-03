@@ -54,13 +54,29 @@ if ! command -v gsutil &> /dev/null; then
     exit 1
 fi
 
-# Count local clips
-echo "Counting local clips..."
+# Count local and remote clips
+echo "Counting local and remote clips..."
 for shot_type in Smash Clear Drop Lift Drive; do
     shot_dir="$LOCAL_CLIPS_DIR/$shot_type"
     if [ -d "$shot_dir" ]; then
-        count=$(find "$shot_dir" -name "*.mp4" | wc -l | tr -d ' ')
-        echo "  $shot_type: $count clips"
+        local_count=$(find "$shot_dir" -name "*.mp4" | wc -l | tr -d ' ')
+
+        # Check remote count
+        shot_type_lower=$(echo "$shot_type" | tr '[:upper:]' '[:lower:]')
+        gcs_path="$GCS_BUCKET/$shot_type_lower"
+        remote_count=0
+        if gsutil -q ls "$gcs_path/" >/dev/null 2>&1; then
+            remote_count=$(gsutil ls "$gcs_path/*.mp4" 2>/dev/null | wc -l | tr -d ' ')
+        fi
+
+        # Show status
+        if [ $remote_count -eq $local_count ] && [ $local_count -gt 0 ]; then
+            echo -e "  $shot_type: $local_count local, $remote_count remote ${GREEN}✓ Complete${NC}"
+        elif [ $remote_count -gt 0 ]; then
+            echo -e "  $shot_type: $local_count local, $remote_count remote ${YELLOW}⚠ Partial${NC}"
+        else
+            echo "  $shot_type: $local_count local, $remote_count remote"
+        fi
     fi
 done
 echo ""
@@ -90,13 +106,38 @@ upload_shot_type() {
         return
     fi
 
-    local batch_count=$(( (clip_count + BATCH_SIZE - 1) / BATCH_SIZE ))
+    # Check if remote directory exists and count remote files
+    local remote_count=0
+    if gsutil -q ls "$gcs_path/" >/dev/null 2>&1; then
+        remote_count=$(gsutil ls "$gcs_path/*.mp4" 2>/dev/null | wc -l | tr -d ' ')
+    fi
 
-    echo -e "${BLUE}Processing $shot_type ($clip_count clips in $batch_count batches)...${NC}"
+    # Skip if remote has same number of files as local
+    if [ $remote_count -eq $clip_count ] && [ $clip_count -gt 0 ]; then
+        echo -e "${GREEN}✓${NC} $shot_type: Already uploaded ($remote_count/$clip_count clips) - Skipping"
+        echo ""
+        return
+    fi
+
+    # Show upload plan
+    local batch_count=$(( (clip_count + BATCH_SIZE - 1) / BATCH_SIZE ))
+    local to_upload=$(( clip_count - remote_count ))
+
+    if [ $remote_count -gt 0 ]; then
+        echo -e "${BLUE}Processing $shot_type ($clip_count local, $remote_count remote, ~$to_upload to upload)...${NC}"
+    else
+        echo -e "${BLUE}Processing $shot_type ($clip_count clips in $batch_count batches)...${NC}"
+    fi
 
     if [ "$DRY_RUN" == true ]; then
-        echo "[DRY-RUN] Would create directory: $gcs_path/"
-        echo "[DRY-RUN] Would upload $clip_count clips in batches of $BATCH_SIZE"
+        if [ $remote_count -eq 0 ]; then
+            echo "[DRY-RUN] Would create directory: $gcs_path/"
+            echo "[DRY-RUN] Would upload $clip_count clips in batches of $BATCH_SIZE"
+        else
+            echo "[DRY-RUN] Directory exists with $remote_count files"
+            echo "[DRY-RUN] Would upload remaining $to_upload clips in batches of $BATCH_SIZE"
+        fi
+
         for ((batch=0; batch<batch_count; batch++)); do
             local start=$((batch * BATCH_SIZE))
             local end=$((start + BATCH_SIZE))

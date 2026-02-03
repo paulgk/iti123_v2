@@ -1,0 +1,15 @@
+name: iti123
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy=1.24
+  - opencv=4.8
+  - pip:
+    - mediapipe==0.10.9
+    - pandas
+    - tqdm
+    - scikit-learn
+    - pillow

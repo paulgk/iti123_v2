@@ -39,7 +39,7 @@ def extract_pose_from_video(args):
     """
     Wrapper for multiprocessing - takes tuple of arguments
     """
-    video_path, output_dir, target_fps, min_confidence, model_complexity = args
+    video_path, output_dir, target_fps, min_confidence, model_complexity, use_gpu = args
 
     try:
         # Generate output filename
@@ -75,9 +75,12 @@ def extract_pose_from_video(args):
         # Get model path from environment or use default location
         model_path = os.environ.get('MEDIAPIPE_POSE_MODEL', 'models/mediapipe/pose_landmarker.task')
 
+        # Choose delegate based on use_gpu flag (default: CPU for reliability)
+        delegate = python.BaseOptions.Delegate.GPU if use_gpu else python.BaseOptions.Delegate.CPU
+
         base_options = python.BaseOptions(
             model_asset_path=model_path,
-            delegate=python.BaseOptions.Delegate.CPU
+            delegate=delegate
         )
 
         options = vision.PoseLandmarkerOptions(
@@ -180,6 +183,8 @@ def main():
     parser.add_argument('--model-complexity', type=int, default=1, choices=[0, 1, 2])
     parser.add_argument('--num-workers', type=int, default=None,
                        help='Number of parallel workers (default: CPU count - 1)')
+    parser.add_argument('--use-gpu', action='store_true', default=False,
+                       help='Attempt to use GPU delegate (experimental, often fails)')
 
     args = parser.parse_args()
 
@@ -193,6 +198,7 @@ def main():
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Workers: {args.num_workers}")
     print(f"Model complexity: {args.model_complexity}")
+    print(f"Delegate: {'GPU (experimental)' if args.use_gpu else 'CPU (stable)'}")
     print()
 
     # Find all videos
@@ -219,7 +225,7 @@ def main():
 
     # Prepare arguments for each video
     task_args = [(str(vf), args.output_dir, args.target_fps,
-                  args.min_confidence, args.model_complexity)
+                  args.min_confidence, args.model_complexity, args.use_gpu)
                  for vf in video_files]
 
     # Process in parallel
