@@ -33,7 +33,7 @@ SHOT_TYPE_MAPPING = {
 
 def load_match_metadata(shuttleset_dir: Path) -> dict:
     """Load match metadata from match.csv"""
-    match_csv = shuttleset_dir / 'match.csv'
+    match_csv = shuttleset_dir / 'set' / 'match.csv'
 
     if not match_csv.exists():
         raise FileNotFoundError(f"Match CSV not found: {match_csv}")
