@@ -43,9 +43,9 @@ def load_match_metadata(shuttleset_dir: Path) -> dict:
     with open(match_csv, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            match_id = int(row.get('match_id', 0))
+            match_id = int(row.get('id', 0))  # Column is 'id' not 'match_id'
             matches[match_id] = {
-                'video_name': row.get('name', ''),
+                'video_name': row.get('video', ''),  # Column is 'video' not 'name'
                 'tournament': row.get('tournament', ''),
                 'round': row.get('round', ''),
                 'winner': row.get('winner', ''),
