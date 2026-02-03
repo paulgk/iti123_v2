@@ -21,50 +21,74 @@ from collections import Counter, defaultdict
 
 
 # Shot type mapping from ShuttleSet labels to our target classes
+# REFINED MAPPING: Removes ambiguous shots for cleaner training data
+# See docs/SHOT_TYPE_MAPPING_REFINED.md for rationale
 SHOT_TYPE_MAPPING = {
-    # SMASH class (overhead offensive)
+    # ===== TARGET CLASSES (5 SHOT TYPES) =====
+
+    # SMASH - Overhead offensive attack
     'Smash': 'Smash',
-    'Steep_Smash': 'Smash',  # Merge steep smash with standard smash
+    'Steep_Smash': 'Smash',  # Same biomechanics, steeper angle
 
-    # CLEAR class (overhead defensive - high contact point)
+    # CLEAR - Overhead defensive high shot
     'Clear': 'Clear',
-    'Clear (Long)': 'Clear',
+    'Clear (Long)': 'Clear',  # Same technique, longer distance
 
-    # DROP class (overhead offensive - deceptive)
+    # DROP - Overhead deceptive soft shot (NO SLICES)
     'Drop': 'Drop',
-    'Drop Shot (Soft)': 'Drop',
-    'Slice_Drop': 'Drop',  # Merge slice drop (pose estimation can't distinguish)
-    'Slice Drop / Cut Drop': 'Drop',
+    'Drop Shot (Soft)': 'Drop',  # Same technique, softer touch
 
-    # LIFT class (defensive - low contact point)
+    # LIFT - Defensive underhand high shot
     'Lift': 'Lift',
-    'Lift / Clear (Defensive)': 'Lift',
-    'Defensive_Lift': 'Lift',
-    'Defensive Lift Return': 'Lift',
+    'Defensive_Lift': 'Lift',  # Same technique, defensive context
 
-    # DRIVE class (mid-court attack)
+    # DRIVE - Mid-court flat aggressive shot (PURE DRIVES ONLY)
     'Drive': 'Drive',
-    'Drive / Flat Shot': 'Drive',
-    'Rear_Drive': 'Drive',  # Merge rear-court drive
-    'Rear-Court Drive': 'Drive',
-    'Defensive_Drive': 'Drive',  # Merge defensive drive
-    'Defensive Drive Return': 'Drive',
-    'Push': 'Drive',  # Merge push with drive (weak biomechanical distinction)
-    'Push Shot': 'Drive',
-    'Short_Drive': 'Drive',
+    'Drive / Flat Shot': 'Drive',  # Alternate name for same shot
 
-    # Excluded shot types (not in target classes)
-    'Block': None,  # Net shot - Phase 5+
+    # ===== EXCLUDED - AMBIGUOUS OR DIFFERENT BIOMECHANICS =====
+
+    # Slice variants (different wrist rotation technique)
+    'Slice_Drop': None,  # ❌ Wrist rotation - different from standard drop
+    'Slice Drop / Cut Drop': None,  # ❌ Ambiguous dual label
+
+    # Push shots (net shots, not mid-court drives)
+    'Push': None,  # ❌ Net shot, wrist-dominated, minimal arm movement
+    'Push Shot': None,  # ❌ Net shot variant
+
+    # Rear-court drives (different positioning/biomechanics)
+    'Rear_Drive': None,  # ❌ Rear court position, defensive setup
+    'Rear-Court Drive': None,  # ❌ Same as above
+
+    # Defensive drive variants (reactive, different posture)
+    'Defensive_Drive': None,  # ❌ Reactive defensive posture
+    'Defensive Drive Return': None,  # ❌ Too specific, defensive context
+
+    # Short drive (different power/distance)
+    'Short_Drive': None,  # ❌ Different power level and distance
+
+    # Ambiguous dual-label shots
+    'Lift / Clear (Defensive)': None,  # ❌ Annotator uncertain - could be either
+    'Defensive Lift Return': None,  # ❌ Too specific context
+
+    # Net shots (Phase 5+)
+    'Block': None,
     'Block (Net)': None,
-    'Net_Kill': None,  # Net shot - Phase 5+
+    'Net_Kill': None,
     'Rush / Kill (Net)': None,
-    'Cross_Net': None,  # Net shot - Phase 6+
+    'Cross_Net': None,
     'Cross-Court Net Shot': None,
-    'Short_Serve': None,  # Service - out of scope
-    'Long_Serve': None,  # Service - out of scope
-    'Overhead_Slice': None,  # Requires IMU sensors
+
+    # Services (out of scope)
+    'Short_Serve': None,
+    'Long_Serve': None,
+
+    # Overhead slices (requires IMU sensors)
+    'Overhead_Slice': None,
     'Overhead Slice / Cross-Court Drop': None,
-    'Unknown': None,  # Unknown shots
+
+    # Unknown shots
+    'Unknown': None,
     'Unknown Shot': None,
 }
 
@@ -165,6 +189,10 @@ def load_shot_annotations(shuttleset_dir: Path, match_id: int, video_name: str) 
                 # Map to target class
                 target_class = SHOT_TYPE_MAPPING.get(shot_type, None)
 
+                # Get player positions for ROI extraction
+                player_x = row.get('player_location_x', '').strip()
+                player_y = row.get('player_location_y', '').strip()
+
                 shots.append({
                     'match_id': match_id,
                     'set_num': set_num,
@@ -176,6 +204,8 @@ def load_shot_annotations(shuttleset_dir: Path, match_id: int, video_name: str) 
                     'original_type': shot_type,
                     'target_class': target_class,
                     'player': row.get('player', ''),
+                    'player_x': float(player_x) if player_x else 0.0,
+                    'player_y': float(player_y) if player_y else 0.0,
                     'backhand': row.get('backhand', ''),
                 })
 
