@@ -89,15 +89,23 @@ def create_metadata(
     clips_missing = 0
     shot_counts = Counter()
 
-    print("Processing annotations...")
+    print("Processing annotations...\n")
+
+    matches_processed = 0
+    total_matches = len(matches)
 
     for match_id, match_info in sorted(matches.items()):
+        matches_processed += 1
         video_name = match_info['video_name']
         match_dir = shuttleset_dir / 'set' / video_name
 
+        print(f"[{matches_processed}/{total_matches}] Match {match_id:02d}: {video_name}", end=' ')
+
         if not match_dir.exists():
-            print(f"  ⚠️  Match directory not found: {match_dir}")
+            print("⚠️  Directory not found")
             continue
+
+        match_clips = 0
 
         # Load all set CSV files
         for set_csv in sorted(match_dir.glob('set*.csv')):
@@ -147,6 +155,7 @@ def create_metadata(
                     if clip_path.exists():
                         clips_found += 1
                         shot_counts[target_class] += 1
+                        match_clips += 1
 
                         metadata_rows.append({
                             'video_id': video_id,
@@ -166,7 +175,10 @@ def create_metadata(
                     else:
                         clips_missing += 1
 
-    print(f"✓ Processed annotations")
+        print(f"→ {match_clips} clips")
+
+    print()
+    print(f"✓ Processed {matches_processed} matches")
     print(f"  Clips found:   {clips_found}")
     print(f"  Clips missing: {clips_missing}")
     print()

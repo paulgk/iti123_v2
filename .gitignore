@@ -54,6 +54,7 @@ data/processed/poses/*.npy
 data/processed/poses/*.pkl
 data/processed/features/*.npy
 data/processed/features/*.pkl
+data/poses/*.pkl
 
 #Shuttleset Annotations 
 data/annotations/*

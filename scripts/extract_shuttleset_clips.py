@@ -440,12 +440,19 @@ Examples:
     print()
 
     # Process each match
+    import time
+    start_time_overall = time.time()
+
     total_clips_extracted = 0
     total_clips_failed = 0
     clips_per_type = Counter()
     skipped_matches = []
 
+    matches_processed = 0
+    total_matches = len(matches)
+
     for match_id, match_info in sorted(matches.items()):
+        matches_processed += 1
         video_name = match_info['video_name']
         video_file = args.input / f"{match_id:02d}.mp4"
 
@@ -454,7 +461,7 @@ Examples:
             skipped_matches.append(match_id)
             continue
 
-        print(f"Processing Match {match_id:02d}: {match_info['tournament']} - {match_info['round']}")
+        print(f"\n[{matches_processed}/{total_matches}] Match {match_id:02d}: {match_info['tournament']}")
         print(f"  Players: {match_info['winner']} vs {match_info['loser']}")
 
         # Load shot annotations
@@ -474,7 +481,7 @@ Examples:
 
         # Count shots by type
         shot_counts = Counter(s['target_class'] for s in target_shots)
-        print(f"  Shots found: {sum(shot_counts.values())} total")
+        print(f"  Shots to extract: {sum(shot_counts.values())}")
         for shot_type in ['Smash', 'Clear', 'Drop', 'Lift', 'Drive']:
             if shot_type in shot_counts:
                 print(f"    {shot_type}: {shot_counts[shot_type]}")
@@ -482,8 +489,9 @@ Examples:
         # Extract clips
         match_extracted = 0
         match_failed = 0
+        match_start = time.time()
 
-        for shot in target_shots:
+        for idx, shot in enumerate(target_shots, 1):
             shot_type = shot['target_class']
 
             # Generate output filename
@@ -516,11 +524,28 @@ Examples:
             else:
                 match_failed += 1
 
+            # Progress indicator every 50 clips
+            if not args.dry_run and idx % 50 == 0:
+                print(f"    Progress: {idx}/{len(target_shots)} clips ({match_extracted} ok, {match_failed} failed)")
+
         total_clips_extracted += match_extracted
         total_clips_failed += match_failed
 
+        match_duration = time.time() - match_start
+
         if not args.dry_run:
-            print(f"  ✓ Extracted: {match_extracted} clips, Failed: {match_failed}")
+            print(f"  ✓ Extracted: {match_extracted}/{len(target_shots)} clips in {match_duration:.1f}s")
+            if match_failed > 0:
+                print(f"  ✗ Failed: {match_failed}")
+
+            # Estimate remaining time
+            elapsed = time.time() - start_time_overall
+            avg_time_per_match = elapsed / matches_processed
+            remaining_matches = total_matches - matches_processed
+            estimated_remaining = avg_time_per_match * remaining_matches
+
+            if remaining_matches > 0:
+                print(f"  Estimated time remaining: {estimated_remaining/60:.1f} minutes ({remaining_matches} matches left)")
 
         print()
 

@@ -358,17 +358,29 @@ Examples:
     # Load metadata
     print("Loading metadata...")
     metadata_rows = []
+    shot_type_counts = {}
 
     with open(args.metadata, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
             metadata_rows.append(row)
+            shot_type = row.get('shot_type', 'Unknown')
+            shot_type_counts[shot_type] = shot_type_counts.get(shot_type, 0) + 1
 
     print(f"✓ Loaded {len(metadata_rows)} clips from metadata")
+    print(f"\nBreakdown by shot type:")
+    for shot_type in ['Smash', 'Clear', 'Drop', 'Lift', 'Drive']:
+        if shot_type in shot_type_counts:
+            print(f"  {shot_type:<10} {shot_type_counts[shot_type]:>6} clips")
     print()
 
     # Process clips
+    import time
+    start_time = time.time()
+
     print("Extracting poses with ROI...")
+    print(f"Using {args.num_workers} worker(s) for parallel processing")
+    print()
 
     process_func = partial(
         process_clip,
@@ -381,29 +393,69 @@ Examples:
 
     successful = 0
     failed = 0
+    last_report_time = time.time()
+    report_interval = 60  # Report every 60 seconds
 
     if args.num_workers > 1:
         # Parallel processing
         with mp.Pool(args.num_workers) as pool:
-            results = list(tqdm(
-                pool.imap(process_func, metadata_rows),
-                total=len(metadata_rows),
-                desc="Extracting poses"
-            ))
+            results_iter = pool.imap(process_func, metadata_rows)
 
-            for video_id, success in results:
+            for idx, (video_id, success) in enumerate(tqdm(
+                results_iter,
+                total=len(metadata_rows),
+                desc="Extracting poses",
+                unit="clips"
+            ), 1):
                 if success:
                     successful += 1
                 else:
                     failed += 1
+
+                # Periodic status report
+                current_time = time.time()
+                if current_time - last_report_time >= report_interval:
+                    elapsed = current_time - start_time
+                    rate = idx / elapsed if elapsed > 0 else 0
+                    remaining = len(metadata_rows) - idx
+                    eta_seconds = remaining / rate if rate > 0 else 0
+
+                    print(f"\nProgress: {idx}/{len(metadata_rows)} ({idx/len(metadata_rows)*100:.1f}%)")
+                    print(f"Success rate: {successful}/{idx} ({successful/idx*100:.1f}%)")
+                    print(f"Rate: {rate:.1f} clips/sec")
+                    print(f"Estimated time remaining: {eta_seconds/60:.1f} minutes\n")
+
+                    last_report_time = current_time
     else:
         # Sequential processing
-        for row in tqdm(metadata_rows, desc="Extracting poses"):
+        for idx, row in enumerate(tqdm(metadata_rows, desc="Extracting poses", unit="clips"), 1):
             video_id, success = process_func(row)
             if success:
                 successful += 1
             else:
                 failed += 1
+
+            # Periodic status report
+            current_time = time.time()
+            if current_time - last_report_time >= report_interval:
+                elapsed = current_time - start_time
+                rate = idx / elapsed if elapsed > 0 else 0
+                remaining = len(metadata_rows) - idx
+                eta_seconds = remaining / rate if rate > 0 else 0
+
+                print(f"\nProgress: {idx}/{len(metadata_rows)} ({idx/len(metadata_rows)*100:.1f}%)")
+                print(f"Success rate: {successful}/{idx} ({successful/idx*100:.1f}%)")
+                print(f"Rate: {rate:.1f} clips/sec")
+                print(f"Estimated time remaining: {eta_seconds/60:.1f} minutes\n")
+
+                last_report_time = current_time
+
+    # Calculate final statistics
+    end_time = time.time()
+    total_duration = end_time - start_time
+    hours = int(total_duration // 3600)
+    minutes = int((total_duration % 3600) // 60)
+    seconds = int(total_duration % 60)
 
     # Summary
     print()
@@ -414,8 +466,13 @@ Examples:
     print(f"Successful:       {successful}")
     print(f"Failed:           {failed}")
     print(f"Success rate:     {successful / len(metadata_rows) * 100:.1f}%")
+    print(f"Processing time:  {hours:02d}:{minutes:02d}:{seconds:02d}")
+    if successful > 0:
+        avg_time = total_duration / len(metadata_rows)
+        print(f"Avg time/clip:    {avg_time:.2f} seconds")
     print()
     print(f"Output directory: {args.output}")
+    print(f"Pose files saved: {successful}")
     print("=" * 80)
 
     return 0

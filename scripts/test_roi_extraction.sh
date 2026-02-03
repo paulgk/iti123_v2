@@ -12,7 +12,7 @@ CLIPS_DIR="data/clips_test"
 POSES_DIR="data/poses_test"
 METADATA_FILE="data/metadata_test.csv"
 SHUTTLESET_DIR="ShuttleSet"
-MODEL_PATH="models/pose_landmarker_heavy.task"
+MODEL_PATH="models/mediapipe/pose_landmarker_heavy.task"
 NUM_WORKERS=4
 
 echo "=========================================="

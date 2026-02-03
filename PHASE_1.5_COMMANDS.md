@@ -28,246 +28,271 @@ bash scripts/test_roi_extraction.sh
 
 ## Full Extraction (All 44 Matches)
 
-### Step 1: Extract Clips (2 hours)
+### Option 1: Extract All at Once (10-12 hours)
 
 ```bash
-python scripts/extract_shuttleset_clips.py \
-    --input data/raw_videos \
-    --output data/clips \
-    --shuttleset ShuttleSet \
-    --execute
-
-# Expected: ~19,778 clips
-# Smash: 4,234 | Clear: 2,922 | Drop: 6,290 | Lift: 5,632 | Drive: 700
+bash scripts/extract_full_pipeline.sh
+# Extracts matches 01-44 in one run
 ```
 
-### Step 2: Create Metadata (5 minutes)
+### Option 2: Split into Two Phases (Recommended)
 
+**Phase 1a: First Half (5-6 hours)**
 ```bash
-python scripts/create_metadata_csv.py \
-    --shuttleset ShuttleSet \
-    --clips data/clips \
-    --output data/metadata.csv
-
-# Expected: 19,778 entries with player positions
+bash scripts/extract_full_pipeline.sh 01 22
+# Extracts matches 01-22
+# Train model after this completes
 ```
 
-### Step 3: Extract Poses with ROI (8-12 hours)
-
+**Phase 1b: Second Half (5-6 hours)**
 ```bash
-python scripts/extract_poses_roi.py \
-    --clips data/clips \
+bash scripts/extract_full_pipeline.sh 23 44
+# Extracts matches 23-44
+# Retrain model with combined data
+```
+
+---
+
+## Expected Results
+
+### After First Half (Matches 01-22)
+- ~9,889 clips extracted
+- ~9,700 poses extracted (98% success)
+- ~7,911 usable training samples
+- Ready for initial training
+
+### After Full Dataset (Matches 01-44)
+- ~19,778 clips extracted
+- ~19,500 poses extracted (98% success)
+- ~15,822 usable training samples
+- Final training with full data
+
+---
+
+## Training Commands
+
+### Option 1: Colab Notebook (Recommended)
+
+Train 4 deep learning models in Google Colab:
+- **ST-GCN** (Graph Convolutional Network) - 89-92% accuracy
+- **MS-G3D** (Multi-Scale GCN) - 90-93% accuracy ⭐ Best
+- **BiLSTM** (Temporal baseline) - 84-88% accuracy
+- **Skeleton Transformer** (Attention-based) - 87-91% accuracy
+
+```python
+# 1. Open in Colab: notebooks/badminton_action_recognition_training.ipynb
+# 2. Runtime → Change runtime type → GPU (T4)
+# 3. Run all cells (~4-5 hours for all 4 models)
+```
+
+See [docs/COLAB_TRAINING_GUIDE.md](docs/COLAB_TRAINING_GUIDE.md) for complete guide.
+
+### Option 2: Local Training (Scripts)
+
+#### After First Half
+```bash
+python scripts/train_models_fixed.py \
     --metadata data/metadata.csv \
-    --output data/poses \
-    --model models/pose_landmarker_heavy.task \
-    --num-workers 8
-
-# Expected: ~19,500 poses (98%+ success)
-# Can run overnight
+    --pose-dir data/poses \
+    --output outputs/phase1a/ \
+    --model stgcn \
+    --epochs 50
 ```
 
-### Step 4: Validate Results
+#### After Second Half
+```bash
+python scripts/train_models_fixed.py \
+    --metadata data/metadata.csv \
+    --pose-dir data/poses \
+    --output outputs/phase1b/ \
+    --model stgcn \
+    --epochs 50
+```
+
+---
+
+## Monitoring Progress
+
+### Enhanced Logging Features
+
+All scripts now include detailed progress tracking:
+
+**During Clip Extraction:**
+- Match-by-match progress (e.g., `[5/44] Match 05: Tournament Name`)
+- Per-match shot counts by type
+- Progress updates every 50 clips
+- Real-time failure tracking
+- Estimated time remaining after each match
+
+**During Metadata Creation:**
+- Match-by-match progress with clip counts
+- Total clips found vs missing
+- Final breakdown by shot type
+
+**During Pose Extraction:**
+- Shot type breakdown at start
+- Progress bar with clip count
+- Status reports every 60 seconds showing:
+  - Current progress percentage
+  - Success rate
+  - Processing rate (clips/sec)
+  - Estimated time remaining
+- Final summary with:
+  - Total duration (HH:MM:SS)
+  - Average time per clip
+  - Success rate
+
+### Check Running Pipeline
+
+```bash
+# View real-time log output (for extract_full_pipeline.sh)
+tail -f logs/extraction_*_*.log
+
+# Count extracted clips so far
+find data/clips -name "*.mp4" | wc -l
+
+# Count extracted poses so far
+find data/poses -name "*.pkl" | wc -l
+
+# Check poses by shot type
+for shot in Smash Clear Drop Lift Drive; do
+    echo "$shot: $(find data/poses -name "*_${shot}.pkl" | wc -l)"
+done
+```
+
+### Validate After Completion
 
 ```bash
 python scripts/validate_roi_poses.py \
     --poses data/poses \
     --metadata data/metadata.csv
-
-# Should show:
-# - 0% multi-player detections
-# - ~20% short sequences (will be filtered)
-# - ~15,822 usable training samples
 ```
 
 ---
 
-## Training
+## Troubleshooting
+
+### Pipeline Stopped Unexpectedly
 
 ```bash
-# Train ST-GCN model
-python scripts/train_models_fixed.py \
-    --metadata data/metadata.csv \
-    --pose-dir data/poses \
-    --output outputs/ \
-    --model stgcn \
-    --epochs 50
+# Check last log for errors
+tail -100 logs/extraction_*_*.log
 
-# Expected: 89-92% accuracy
-```
-
----
-
-## Troubleshooting Commands
-
-### Check clip counts
-
-```bash
-find data/clips -name "*.mp4" | wc -l
-# Should be: ~19,778
-
-for shot in Smash Clear Drop Lift Drive; do
-    echo "$shot: $(find data/clips/$shot -name '*.mp4' | wc -l)"
-done
-```
-
-### Check metadata
-
-```bash
-wc -l data/metadata.csv
-# Should be: 19,779 (including header)
-
-head -3 data/metadata.csv
-# Check player_x, player_y columns exist
-```
-
-### Check poses
-
-```bash
-find data/poses -name "*.pkl" | wc -l
-# Should be: ~19,500
-
-# Test load a pose
-python -c "
-import pickle
-with open('data/poses/01_set1_rally03_ball05_Smash.pkl', 'rb') as f:
-    pose = pickle.load(f)
-print(f'Shape: {pose.shape}')
-print(f'Frames: {len(pose)}')
-"
-```
-
-### Check for multi-player contamination
-
-```bash
-python scripts/validate_roi_poses.py \
-    --poses data/poses \
-    --multi-player-threshold 0.6
-
-# Should show 0% or <5% multi-player detections
-```
-
----
-
-## Configuration
-
-### Default Settings
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| ROI width | 600px | Captures full body + arm extension |
-| ROI height | 800px | Full height from head to feet |
-| Workers | 4-8 | Parallel processing (use CPU cores - 2) |
-| Min frames | 30 | Minimum sequence length (1 second at 30 FPS) |
-| Multi-player threshold | 0.6 | X-range >60% indicates multi-player |
-
-### Adjust ROI Size
-
-```bash
-# If multi-player rate is high (>5%), try smaller ROI
+# Resume from pose extraction step if clips already extracted
 python scripts/extract_poses_roi.py \
-    --roi-width 500 \
-    --roi-height 700 \
+    --clips data/clips \
+    --metadata data/metadata.csv \
+    --output data/poses \
+    --model models/mediapipe/pose_landmarker_heavy.task \
     --num-workers 8
 ```
 
-### Adjust Workers
+### Out of Memory
 
 ```bash
-# For 10-core machine
-python scripts/extract_poses_roi.py --num-workers 8
+# Reduce number of workers
+# Edit extract_full_pipeline.sh: NUM_WORKERS=4 (instead of 8)
+bash scripts/extract_full_pipeline.sh 01 22
+```
 
-# For 6-core machine
-python scripts/extract_poses_roi.py --num-workers 4
+### Check Specific Match Progress
 
-# Sequential (debugging)
-python scripts/extract_poses_roi.py --num-workers 1
+```bash
+# Count clips for specific match
+find data/clips -name "01_*.mp4" | wc -l
+
+# Count poses for specific match
+find data/poses -name "01_*.pkl" | wc -l
 ```
 
 ---
 
 ## File Locations
 
-### Input
-- Match videos: `data/raw_videos/*.mp4` (44 videos)
-- ShuttleSet annotations: `ShuttleSet/set/` (CSV files)
-- MediaPipe model: `models/pose_landmarker_heavy.task`
+### Logs
+- Location: `logs/extraction_01_to_22_YYYYMMDD_HHMMSS.log`
+- Contains: Step-by-step execution, timings, success rates
 
-### Output
-- Clips: `data/clips/{shot_type}/*.mp4`
+### Outputs
+- Clips: `data/clips/{Smash,Clear,Drop,Lift,Drive}/*.mp4`
 - Metadata: `data/metadata.csv`
 - Poses: `data/poses/*.pkl`
 
-### Test Output (from test script)
-- Test clips: `data/clips_test/`
-- Test poses: `data/poses_test/`
-- Test metadata: `data/metadata_test.csv`
+### Validation Reports
+- Printed to console after validation step
+- Shows: multi-player rate, short sequences, usable samples
 
 ---
 
-## Expected Timeline
+## GCS Storage Management
 
-| Task | Time | Can Run Unattended? |
-|------|------|---------------------|
-| Test (1 match) | ~15 min | No (check output) |
-| Clip extraction | ~2 hours | Yes |
-| Metadata creation | ~5 min | Yes |
-| Pose extraction | ~8-12 hours | Yes (overnight) |
-| Validation | ~5 min | No (review results) |
-| Training | ~4-6 hours | Yes (GPU recommended) |
-| **Total** | **~16-20 hours** | **Mostly yes** |
+### Clean Up Old Files First
 
----
+Before uploading new ROI data, clean up old files:
 
-## Expected Results
+```bash
+# 1. Analyze current storage
+bash scripts/list_gcs_contents.sh
 
-### Dataset
-- Clean shots: 19,778 (removed 23.3% ambiguous)
-- Clips extracted: ~19,778
-- Poses extracted: ~19,500 (98% success)
-- Usable samples: ~15,822 (after filtering short/multi-player)
+# 2. Interactive cleanup (recommended)
+bash scripts/clean_gcs_interactive.sh
 
-### Quality Metrics
-- Multi-player rate: 0% (ROI prevents merging)
-- Short sequences: ~20% (filtered during training)
-- Mean coordinates: 0.3-0.7 (before normalization)
-- Std: 0.2-0.4 (after normalization should be 0.15-0.35)
+# Delete:
+#   - Old pose extractions (poses_old, poses_backup)
+#   - Ambiguous shots (Slice_Drop, Push, Rear_Drive)
+#   - Test files (clips_test, poses_test)
+#   - Old outputs/models
+```
 
-### Model Performance
-- ST-GCN: **89-92%** accuracy (was 85-90%)
-- LSTM: 84-88% (was 75-82%)
-- MS-TCN: 87-91% (was 82-88%)
+**Expected savings:** 15-30 GB
+
+See [docs/GCS_CLEANUP_GUIDE.md](docs/GCS_CLEANUP_GUIDE.md) for details.
+
+### Upload New ROI Data
+
+After cleanup, use the upload script:
+
+```bash
+# Quick upload (poses + metadata) - RECOMMENDED
+bash scripts/quick_upload_gcs.sh
+
+# Or full-featured upload with verification
+bash scripts/upload_poses_to_gcs.sh
+
+# Or manual upload
+gsutil -m rsync -r data/poses/ gs://iti123storage/features/poses_roi/
+gsutil cp data/metadata.csv gs://iti123storage/data/metadata_roi.csv
+```
+
+**Upload time:** 5-10 minutes for poses, <1 minute for metadata
+
+See [docs/GCS_UPLOAD_DOWNLOAD_GUIDE.md](docs/GCS_UPLOAD_DOWNLOAD_GUIDE.md) for Colab download.
 
 ---
 
 ## Quick Commands Summary
 
 ```bash
-# 1. Test first
+# 1. Test first (15 min)
 bash scripts/test_roi_extraction.sh
 
-# 2. If test looks good, full extraction
-python scripts/extract_shuttleset_clips.py --execute
-python scripts/create_metadata_csv.py
-python scripts/extract_poses_roi.py --num-workers 8
+# 2. Extract first half (5-6 hours, run overnight)
+bash scripts/extract_full_pipeline.sh 01 22
 
-# 3. Validate
-python scripts/validate_roi_poses.py --poses data/poses --metadata data/metadata.csv
+# 3. Clean GCS and upload
+bash scripts/clean_gcs_interactive.sh
+bash scripts/quick_upload_gcs.sh
 
-# 4. Train
+# 4. Train on first half (4-6 hours)
+python scripts/train_models_fixed.py --model stgcn --epochs 50
+
+# 5. Extract second half (5-6 hours)
+bash scripts/extract_full_pipeline.sh 23 44
+
+# 6. Train on full dataset (4-6 hours)
 python scripts/train_models_fixed.py --model stgcn --epochs 50
 ```
 
 ---
 
-## Documentation
-
-- Full plan: [docs/ROI_EXTRACTION_PLAN.md](docs/ROI_EXTRACTION_PLAN.md)
-- Quick start: [docs/ROI_EXTRACTION_QUICKSTART.md](docs/ROI_EXTRACTION_QUICKSTART.md)
-- Shot mapping: [docs/SHOT_TYPE_MAPPING_REFINED.md](docs/SHOT_TYPE_MAPPING_REFINED.md)
-- Dataset info: [docs/EXTRACTION_SUMMARY.md](docs/EXTRACTION_SUMMARY.md)
-
----
-
-**Branch:** `phase-1.5-roi-extraction`
-**Status:** Ready to run
-**Last updated:** 2026-02-03
+**Ready to run!** Start with the test script to verify everything works, then proceed with the first half extraction.
