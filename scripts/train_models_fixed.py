@@ -89,6 +89,27 @@ def normalize_pose(pose_sequence):
     return centered
 
 
+def is_valid_single_person(pose_sequence, max_width=0.6):
+    """
+    Filter out multi-player detections
+
+    CRITICAL: Badminton videos have 2 players. MediaPipe sometimes detects both,
+    creating a "skeleton" that spans the entire court. This breaks normalization.
+
+    Args:
+        pose_sequence: numpy array of shape (T, 33, 3)
+        max_width: Maximum width ratio (0.6 = 60% of frame)
+
+    Returns:
+        True if sequence represents a single player
+    """
+    x_coords = pose_sequence[:, :, 0]
+    x_range = np.max(x_coords) - np.min(x_coords)
+
+    # Single person shouldn't span more than 60% of frame width
+    return x_range < max_width
+
+
 def pad_or_truncate(sequence, target_length):
     """
     Pad or truncate sequence to fixed length
@@ -455,6 +476,10 @@ def main():
             if len(pose_data) < MIN_FRAMES:
                 continue
 
+            # Filter multi-player detections
+            if not is_valid_single_person(pose_data):
+                continue
+
             # Normalize pose
             normalized_pose = normalize_pose(pose_data)
 
@@ -469,7 +494,9 @@ def main():
             print(f"\nError loading {row['video_id']}: {e}")
             continue
 
-    print(f"\n✓ Loaded {len(pose_sequences)} pose sequences (filtered {len(df_valid) - len(pose_sequences)} short clips)")
+    filtered_count = len(df_valid) - len(pose_sequences)
+    print(f"\n✓ Loaded {len(pose_sequences)} pose sequences")
+    print(f"  Filtered: {filtered_count} clips (short sequences + multi-player detections)")
 
     # Convert to arrays
     X = np.array(pose_sequences, dtype=np.float32)
