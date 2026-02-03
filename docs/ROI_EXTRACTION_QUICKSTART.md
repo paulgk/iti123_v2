@@ -42,13 +42,29 @@ curl -L -o pose_landmarker_heavy.task \
 cd ..
 ```
 
-### 3. ShuttleSet Dataset
+### 3. ShuttleSet Dataset and Match Videos
 
 ```bash
-# Ensure ShuttleSet directory exists with match videos
-ls ShuttleSet/match/*.mp4
+# ShuttleSet structure:
+# ShuttleSet/
+#   set/
+#     match.csv              <- Match metadata
+#     {match_name}/          <- Individual match directories
+#       set1.csv, set2.csv   <- Shot annotations
+#
+# Match videos:
+#   You need to download/place match videos separately
+#   Expected location: data/raw_videos/ or ShuttleSet/match/
+#   Format: 01.mp4, 02.mp4, ..., 44.mp4
 
-# Should show: 01.mp4, 02.mp4, ..., 44.mp4
+# Check ShuttleSet annotations exist
+ls ShuttleSet/set/match.csv
+ls ShuttleSet/set/*/set*.csv | head -5
+
+# Check where you've placed match videos
+# (Adjust --input path in extraction command accordingly)
+ls data/raw_videos/*.mp4 | wc -l
+# Should be: 44 match videos
 ```
 
 ---
@@ -61,11 +77,19 @@ Extract video clips from full match videos using refined shot type mapping.
 
 ```bash
 # Extract all clips with refined mapping
+# Note: Adjust --input path to where your match videos are located
 python scripts/extract_shuttleset_clips.py \
-    --input ShuttleSet/match \
+    --input data/raw_videos \
     --output data/clips \
     --shuttleset ShuttleSet \
     --execute
+
+# Or if videos are in ShuttleSet/match/:
+# python scripts/extract_shuttleset_clips.py \
+#     --input ShuttleSet/match \
+#     --output data/clips \
+#     --shuttleset ShuttleSet \
+#     --execute
 
 # Expected output:
 #   Smash:  ~4,234 clips
