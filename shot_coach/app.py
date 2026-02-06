@@ -226,6 +226,24 @@ def main():
                     return
 
                 keypoints_list = pose_result['keypoints']
+                valid_frames = pose_result['valid_frames']
+                total_frames = pose_result['frame_count']
+
+                # Show pose detection stats
+                st.info(f"📊 Pose Detection: {valid_frames}/{total_frames} frames with valid pose detected")
+
+                # Check if enough valid frames
+                if valid_frames < 3:
+                    st.error(f"❌ Not enough pose frames detected ({valid_frames} found, need at least 3)")
+                    st.warning("**Tips to improve pose detection:**")
+                    st.markdown("""
+                    - Ensure better lighting
+                    - Stand closer to camera
+                    - Make sure full body is visible
+                    - Use a clear background
+                    - Record at higher resolution
+                    """)
+                    return
 
                 # Find contact frame
                 contact_frame_idx = pose_extractor.find_contact_frame(keypoints_list)

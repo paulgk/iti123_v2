@@ -63,19 +63,35 @@ class TechniqueAnalyzer:
         6. Follow-through (post-contact)
         7. Balance/stability (foot positioning)
         """
-        # Get key frames
+        # Find valid frames around contact
+        valid_frames = [(i, kp) for i, kp in enumerate(keypoints_list) if kp is not None]
+
+        if len(valid_frames) < 3:
+            return {
+                'success': False,
+                'error': f'Not enough valid pose frames detected ({len(valid_frames)} found, need at least 3). Try recording with better lighting and make sure you are fully visible.'
+            }
+
+        # Get key frames - use closest valid frames if exact frames are None
         pre_contact_idx = max(0, contact_frame_idx - 3)
         post_contact_idx = min(len(keypoints_list) - 1, contact_frame_idx + 3)
 
-        pre_contact = keypoints_list[pre_contact_idx]
-        at_contact = keypoints_list[contact_frame_idx]
-        post_contact = keypoints_list[post_contact_idx]
+        # Find closest valid frames
+        def find_closest_valid(target_idx, valid_frames):
+            closest = min(valid_frames, key=lambda x: abs(x[0] - target_idx))
+            return closest[1]
 
-        if not all([pre_contact, at_contact, post_contact]):
-            return {
-                'success': False,
-                'error': 'Missing pose data in key frames'
-            }
+        pre_contact = keypoints_list[pre_contact_idx]
+        if pre_contact is None:
+            pre_contact = find_closest_valid(pre_contact_idx, valid_frames)
+
+        at_contact = keypoints_list[contact_frame_idx]
+        if at_contact is None:
+            at_contact = find_closest_valid(contact_frame_idx, valid_frames)
+
+        post_contact = keypoints_list[post_contact_idx]
+        if post_contact is None:
+            post_contact = find_closest_valid(post_contact_idx, valid_frames)
 
         metrics = {}
 
@@ -151,18 +167,35 @@ class TechniqueAnalyzer:
         6. Follow-through (complete swing)
         7. Body posture (upright for power)
         """
+        # Find valid frames around contact
+        valid_frames = [(i, kp) for i, kp in enumerate(keypoints_list) if kp is not None]
+
+        if len(valid_frames) < 3:
+            return {
+                'success': False,
+                'error': f'Not enough valid pose frames detected ({len(valid_frames)} found, need at least 3). Try recording with better lighting and make sure you are fully visible.'
+            }
+
+        # Get key frames - use closest valid frames if exact frames are None
         pre_contact_idx = max(0, contact_frame_idx - 3)
         post_contact_idx = min(len(keypoints_list) - 1, contact_frame_idx + 3)
 
-        pre_contact = keypoints_list[pre_contact_idx]
-        at_contact = keypoints_list[contact_frame_idx]
-        post_contact = keypoints_list[post_contact_idx]
+        # Find closest valid frames
+        def find_closest_valid(target_idx, valid_frames):
+            closest = min(valid_frames, key=lambda x: abs(x[0] - target_idx))
+            return closest[1]
 
-        if not all([pre_contact, at_contact, post_contact]):
-            return {
-                'success': False,
-                'error': 'Missing pose data in key frames'
-            }
+        pre_contact = keypoints_list[pre_contact_idx]
+        if pre_contact is None:
+            pre_contact = find_closest_valid(pre_contact_idx, valid_frames)
+
+        at_contact = keypoints_list[contact_frame_idx]
+        if at_contact is None:
+            at_contact = find_closest_valid(contact_frame_idx, valid_frames)
+
+        post_contact = keypoints_list[post_contact_idx]
+        if post_contact is None:
+            post_contact = find_closest_valid(post_contact_idx, valid_frames)
 
         metrics = {}
 

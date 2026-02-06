@@ -1,0 +1,22 @@
+Test Accuracy: 74.62%
+
+Confusion Matrix:
+       Clear  Drive  Drop  Lift  Smash
+Clear    477     26     5    20      7
+Drive     37    456    47   145     55
+Drop     117     85  1132   114     70
+Lift      39    126    33   731     37
+Smash     36     89    31    19    549
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       Clear     0.6756    0.8916    0.7687       535
+       Drive     0.5831    0.6162    0.5992       740
+        Drop     0.9071    0.7457    0.8185      1518
+        Lift     0.7104    0.7567    0.7328       966
+       Smash     0.7646    0.7583    0.7614       724
+
+    accuracy                         0.7462      4483
+   macro avg     0.7282    0.7537    0.7361      4483
+weighted avg     0.7606    0.7462    0.7487      4483

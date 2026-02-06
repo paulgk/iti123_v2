@@ -1,0 +1,74 @@
+{
+  "model": "ResNet18_BiLSTM",
+  "timestamp": "2026-02-06T01:39:00.984416",
+  "training": {
+    "total_epochs": 44,
+    "best_val_acc": 75.40760869565217,
+    "final_train_acc": 84.03049132022292,
+    "final_val_acc": 74.04891304347827
+  },
+  "test": {
+    "accuracy": 74.61521302699086,
+    "total_samples": 4483,
+    "correct": 3345
+  },
+  "dataset": {
+    "train_samples": 15611,
+    "val_samples": 2208,
+    "test_samples": 4483,
+    "total_samples": 22302
+  },
+  "config": {
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "num_frames": 16,
+    "frame_size": [
+      224,
+      224
+    ]
+  },
+  "confusion_matrix": [
+    [
+      477,
+      26,
+      5,
+      20,
+      7
+    ],
+    [
+      37,
+      456,
+      47,
+      145,
+      55
+    ],
+    [
+      117,
+      85,
+      1132,
+      114,
+      70
+    ],
+    [
+      39,
+      126,
+      33,
+      731,
+      37
+    ],
+    [
+      36,
+      89,
+      31,
+      19,
+      549
+    ]
+  ],
+  "class_names": [
+    "Clear",
+    "Drive",
+    "Drop",
+    "Lift",
+    "Smash"
+  ]
+}
