@@ -13,21 +13,19 @@ import shutil
 sys.path.append(str(Path(__file__).parent / 'modules'))
 
 from shot_classifier import ShotClassifier
-from pose_extractor import PoseExtractor
-from technique_analyzer import TechniqueAnalyzer
 
 
 # Page config
 st.set_page_config(
-    page_title="Badminton Shot Coach",
+    page_title="Badminton Shot Classifier",
     page_icon="🏸",
     layout="wide"
 )
 
 
 @st.cache_resource
-def load_models():
-    """Load models once and cache"""
+def load_classifier():
+    """Load shot classifier once and cache"""
     # Path to trained model
     model_path = Path(__file__).parent.parent / 'outputs' / 'results_optionA' / 'best_model.pth'
 
@@ -36,113 +34,26 @@ def load_models():
         st.stop()
 
     classifier = ShotClassifier(model_path)
-    pose_extractor = PoseExtractor()
-    analyzer = TechniqueAnalyzer()
-
-    return classifier, pose_extractor, analyzer
+    return classifier
 
 
-def format_report(shot_type, confidence, technique_result):
-    """Format analysis report as text"""
-
-    report = []
-    report.append("=" * 70)
-    report.append("BADMINTON SHOT COACH - ANALYSIS REPORT")
-    report.append("=" * 70)
-    report.append("")
-
-    # Shot Classification
-    report.append("SHOT CLASSIFICATION")
-    report.append("-" * 70)
-    report.append(f"Shot Type: {shot_type}")
-    report.append(f"Confidence: {confidence*100:.1f}%")
-    report.append("")
-
-    # Technique Analysis
-    if technique_result['success']:
-        report.append("TECHNIQUE ANALYSIS")
-        report.append("-" * 70)
-        report.append(f"Overall Score: {technique_result['overall_score']}/100")
-        report.append("")
-
-        # Feedback sections
-        for feedback_section in technique_result['feedback']:
-            category = feedback_section['category']
-            report.append(f"{category.upper()}")
-            report.append("-" * 70)
-
-            if category == 'Overall Assessment':
-                report.append(f"Rating: {feedback_section['rating']}")
-                report.append(f"{feedback_section['comment']}")
-            else:
-                for item in feedback_section['items']:
-                    report.append(f"  • {item}")
-
-            report.append("")
-
-        # Detailed Metrics
-        report.append("DETAILED METRICS")
-        report.append("-" * 70)
-        metrics = technique_result['metrics']
-
-        for metric_name, metric_data in metrics.items():
-            metric_display = metric_name.replace('_', ' ').title()
-            value = metric_data['value']
-            score = metric_data['score']
-            optimal = metric_data['optimal']
-            unit = metric_data['unit']
-
-            if unit == 'ratio':
-                value_str = f"{value:.0%}"
-                optimal_str = f"{optimal:.0%}"
-            elif unit == 'degrees':
-                value_str = f"{value:.1f}°"
-                optimal_str = f"{optimal:.0f}°"
-            else:
-                value_str = f"{value:.2f}"
-                optimal_str = f"{optimal:.2f}"
-
-            # Status indicator
-            if score >= 85:
-                status = "✅ Excellent"
-            elif score >= 65:
-                status = "⚠️  Good"
-            else:
-                status = "❌ Needs Work"
-
-            report.append(f"{metric_display:20s}: {value_str:>8s} (target: {optimal_str:>8s}) - Score: {score:>5.1f}/100 {status}")
-
-        report.append("")
-
-    else:
-        report.append("TECHNIQUE ANALYSIS")
-        report.append("-" * 70)
-        report.append(f"Error: {technique_result.get('error', 'Unknown error')}")
-        report.append("")
-
-    report.append("=" * 70)
-    report.append("Thank you for using Badminton Shot Coach!")
-    report.append("Keep practicing to improve your technique! 🏸")
-    report.append("=" * 70)
-
-    return "\n".join(report)
 
 
 def main():
     # Header
-    st.title("🏸 Badminton Shot Coach")
-    st.markdown("### AI-Powered Shot Technique Analysis")
-    st.markdown("Upload a video of your Smash or Clear shot for instant feedback!")
+    st.title("🏸 Badminton Shot Classifier")
+    st.markdown("### AI-Powered Shot Type Recognition")
+    st.markdown("Upload a video of any badminton shot to instantly identify the shot type!")
 
     st.markdown("---")
 
-    # Load models
-    with st.spinner("Loading AI models..."):
+    # Load classifier
+    with st.spinner("Loading AI model..."):
         try:
-            classifier, pose_extractor, analyzer = load_models()
-            st.success("✅ Models loaded successfully!")
+            classifier = load_classifier()
+            st.success("✅ Model loaded successfully!")
         except Exception as e:
-            st.error(f"Error loading models: {e}")
+            st.error(f"Error loading model: {e}")
             st.stop()
 
     st.markdown("---")
@@ -151,21 +62,27 @@ def main():
     with st.expander("📖 How to Use", expanded=False):
         st.markdown("""
         **Instructions:**
-        1. Record a 2-3 second video of your shot (Smash or Clear)
-        2. Make sure you're visible in the frame (full body preferred)
-        3. Upload the video using the button below
-        4. Wait for analysis (takes 10-30 seconds)
-        5. Review your technique report!
+        1. Record a 2-3 second video of any badminton shot
+        2. Upload the video using the button below
+        3. Wait for classification (takes 5-10 seconds)
+        4. See which shot type was detected!
 
-        **Supported Shot Types:**
-        - 🔥 **Smash** - Overhead attacking shot
-        - 🎯 **Clear** - High defensive shot
+        **Supported Shot Types (5 classes):**
+        - 🎯 **Clear** - High defensive shot to the back
+        - ⚡ **Drive** - Fast, flat attacking shot
+        - 🪶 **Drop** - Soft shot over the net
+        - 📈 **Lift** - Defensive lob to the back
+        - 💥 **Smash** - Powerful downward attack
 
         **What Gets Analyzed:**
-        - Shot type detection (AI classification)
-        - Technique metrics (arm extension, rotation, etc.)
-        - Overall score (0-100)
-        - Specific improvement recommendations
+        - Shot type classification (74.6% accuracy)
+        - Confidence scores for all shot types
+        - Alternative possibilities
+
+        **Video Requirements:**
+        - Clear view of the shot execution
+        - 2-3 seconds duration
+        - MP4, AVI, or MOV format
         """)
 
     # File upload
@@ -207,156 +124,88 @@ def main():
 
                 progress_bar.progress(40)
 
-                # Check if supported
-                if shot_type not in ['Smash', 'Clear']:
-                    st.warning(f"⚠️ Detected shot type: **{shot_type}**")
-                    st.info("Currently, Shot Coach only supports **Smash** and **Clear** analysis.")
-                    st.info("Support for Drive, Drop, and Lift coming soon!")
-                    return
-
-                # Step 2: Extract pose
-                status_text.text("🦴 Extracting pose keypoints...")
-                progress_bar.progress(60)
-
-                pose_result = pose_extractor.extract_from_video(tmp_video_path)
-
-                if not pose_result['success']:
-                    st.error(f"Error extracting pose: {pose_result.get('error')}")
-                    st.info("💡 Tip: Make sure you're clearly visible in the video!")
-                    return
-
-                keypoints_list = pose_result['keypoints']
-                valid_frames = pose_result['valid_frames']
-                total_frames = pose_result['frame_count']
-
-                # Show pose detection stats
-                st.info(f"📊 Pose Detection: {valid_frames}/{total_frames} frames with valid pose detected")
-
-                # Check if enough valid frames
-                if valid_frames < 3:
-                    st.error(f"❌ Not enough pose frames detected ({valid_frames} found, need at least 3)")
-                    st.warning("**Tips to improve pose detection:**")
-                    st.markdown("""
-                    - Ensure better lighting
-                    - Stand closer to camera
-                    - Make sure full body is visible
-                    - Use a clear background
-                    - Record at higher resolution
-                    """)
-                    return
-
-                # Find contact frame
-                contact_frame_idx = pose_extractor.find_contact_frame(keypoints_list)
-
-                progress_bar.progress(75)
-
-                # Step 3: Analyze technique
-                status_text.text("📊 Analyzing technique...")
-                progress_bar.progress(90)
-
-                technique_result = analyzer.analyze_shot(
-                    keypoints_list,
-                    shot_type,
-                    contact_frame_idx
-                )
-
                 progress_bar.progress(100)
-                status_text.text("✅ Analysis complete!")
+                status_text.text("✅ Classification complete!")
 
-                # Generate report
-                report_text = format_report(shot_type, confidence, technique_result)
+                # Show all probabilities
+                probabilities = classification_result['probabilities']
 
                 # Display results
                 st.markdown("---")
-                st.markdown("## 📋 Analysis Report")
+                st.markdown("## 🎯 Shot Classification Results")
 
-                # Show in columns
-                col1, col2 = st.columns([1, 1])
+                # Main result - large display
+                st.markdown(f"### Detected Shot: **{shot_type}**")
 
-                with col1:
-                    st.markdown("### Shot Classification")
-                    st.metric("Shot Type", shot_type)
-                    st.metric("Confidence", f"{confidence*100:.1f}%")
-
+                # Confidence meter
+                col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
-                    if technique_result['success']:
-                        st.markdown("### Technique Score")
-                        score = technique_result['overall_score']
+                    st.metric("Confidence", f"{confidence*100:.1f}%", delta=None)
+                    st.progress(confidence)
 
-                        # Color based on score
-                        if score >= 85:
-                            score_color = "🟢"
-                        elif score >= 70:
-                            score_color = "🟡"
-                        else:
-                            score_color = "🔴"
-
-                        st.metric("Overall Score", f"{score_color} {score}/100")
-
-                # Show feedback
+                # Show all class probabilities
                 st.markdown("---")
-                st.markdown("### 💡 Feedback")
+                st.markdown("### 📊 All Shot Type Probabilities")
 
-                if technique_result['success']:
-                    for feedback_section in technique_result['feedback']:
-                        category = feedback_section['category']
+                # Sort by probability
+                sorted_probs = sorted(probabilities.items(), key=lambda x: x[1], reverse=True)
 
-                        if category == 'Overall Assessment':
-                            st.success(f"**{feedback_section['rating']}**: {feedback_section['comment']}")
+                for shot_name, prob in sorted_probs:
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        # Highlight the predicted class
+                        if shot_name == shot_type:
+                            st.markdown(f"**🎯 {shot_name}** (Predicted)")
                         else:
-                            with st.expander(f"📌 {category}", expanded=True):
-                                for item in feedback_section['items']:
-                                    st.markdown(f"- {item}")
+                            st.markdown(f"{shot_name}")
+                    with col2:
+                        st.progress(prob, text=f"{prob*100:.1f}%")
 
-                # Show detailed metrics
+                # Shot descriptions
                 st.markdown("---")
-                st.markdown("### 📊 Detailed Metrics")
+                st.markdown("### 📖 Shot Type Information")
 
-                if technique_result['success']:
-                    metrics = technique_result['metrics']
+                shot_descriptions = {
+                    'Clear': "🎯 **Clear** - High defensive shot to the back of the court. Used to push opponent back and buy time.",
+                    'Drive': "⚡ **Drive** - Fast, flat shot parallel to the ground. Used for quick attacks and keeping opponent under pressure.",
+                    'Drop': "🪶 **Drop** - Soft shot that barely clears the net. Used to make opponent move forward quickly.",
+                    'Lift': "📈 **Lift** - Defensive shot hit high to the back. Similar to Clear but usually from a defensive position.",
+                    'Smash': "💥 **Smash** - Powerful attacking shot hit downward. The primary attacking shot in badminton."
+                }
 
-                    for metric_name, metric_data in metrics.items():
-                        metric_display = metric_name.replace('_', ' ').title()
-                        value = metric_data['value']
-                        score = metric_data['score']
-                        optimal = metric_data['optimal']
-                        unit = metric_data['unit']
+                if shot_type in shot_descriptions:
+                    st.info(shot_descriptions[shot_type])
 
-                        if unit == 'ratio':
-                            value_str = f"{value:.0%}"
-                            optimal_str = f"{optimal:.0%}"
-                        elif unit == 'degrees':
-                            value_str = f"{value:.1f}°"
-                            optimal_str = f"{optimal:.0f}°"
-                        else:
-                            value_str = f"{value:.2f}"
-                            optimal_str = f"{optimal:.2f}"
-
-                        col1, col2, col3 = st.columns([2, 1, 1])
-                        with col1:
-                            st.markdown(f"**{metric_display}**")
-                        with col2:
-                            st.markdown(f"{value_str} (target: {optimal_str})")
-                        with col3:
-                            # Progress bar for score
-                            score_pct = score / 100
-                            if score >= 85:
-                                st.progress(score_pct, text=f"✅ {score:.0f}/100")
-                            elif score >= 65:
-                                st.progress(score_pct, text=f"⚠️ {score:.0f}/100")
-                            else:
-                                st.progress(score_pct, text=f"❌ {score:.0f}/100")
-
-                # Download report
+                # Show alternatives
                 st.markdown("---")
-                st.markdown("### 📥 Download Report")
+                st.markdown("### 💡 Alternative Possibilities")
 
-                st.download_button(
-                    label="Download Text Report",
-                    data=report_text,
-                    file_name=f"shot_analysis_{shot_type.lower()}.txt",
-                    mime="text/plain"
-                )
+                # Get top 3 alternatives
+                alternatives = [s for s in sorted_probs if s[0] != shot_type][:3]
+
+                if alternatives:
+                    for shot_name, prob in alternatives:
+                        if prob > 0.1:  # Only show if probability > 10%
+                            st.markdown(f"- **{shot_name}**: {prob*100:.1f}% probability")
+                            if shot_name in shot_descriptions:
+                                st.caption(shot_descriptions[shot_name])
+
+                # Model info
+                st.markdown("---")
+                st.markdown("### ℹ️ Model Information")
+                st.markdown(f"""
+                - **Model**: ResNet18 + BiLSTM
+                - **Accuracy**: 74.6% (on test set)
+                - **Classes**: 5 badminton shot types
+                - **Training**: 22,302 video samples
+                """)
+
+                # Note about technique analysis
+                st.markdown("---")
+                st.info("""
+                **Note**: Technique analysis (biomechanics, form scoring) is currently disabled.
+                This version focuses on accurate shot classification only.
+                """)
 
             except Exception as e:
                 st.error(f"Error during analysis: {e}")
@@ -377,8 +226,8 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: gray;'>
-    <p>Badminton Shot Coach v1.0 | Powered by AI & Computer Vision</p>
-    <p>Built with ResNet18+BiLSTM (74.6% accuracy) + MediaPipe Pose</p>
+    <p>Badminton Shot Classifier v1.0 | Powered by AI</p>
+    <p>Built with ResNet18+BiLSTM | 74.6% Test Accuracy</p>
     </div>
     """, unsafe_allow_html=True)
 
