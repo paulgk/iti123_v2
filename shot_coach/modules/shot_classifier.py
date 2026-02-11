@@ -113,6 +113,33 @@ class ShotClassifier:
 
         return model
 
+    def get_video_metadata(self, video_path):
+        """
+        Extract video metadata
+
+        Args:
+            video_path: Path to video file
+
+        Returns:
+            dict with video metadata or None if failed
+        """
+        cap = cv2.VideoCapture(str(video_path))
+
+        if not cap.isOpened():
+            return None
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        duration = total_frames / fps if fps > 0 else 0
+
+        cap.release()
+
+        return {
+            'total_frames': total_frames,
+            'fps': fps,
+            'duration': duration
+        }
+
     def extract_frames(self, video_path, num_frames=16, frame_size=(224, 224)):
         """
         Extract frames from video (same as training preprocessing)
@@ -123,21 +150,27 @@ class ShotClassifier:
             frame_size: Size to resize frames
 
         Returns:
-            np.array of shape (num_frames, H, W, 3) or None if failed
+            tuple: (frames_array, metadata_dict) or (None, None) if failed
+            - frames_array: np.array of shape (num_frames, H, W, 3)
+            - metadata_dict: dict with frame indices and timing info
         """
         cap = cv2.VideoCapture(str(video_path))
 
         if not cap.isOpened():
-            return None
+            return None, None
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
 
         if total_frames == 0:
             cap.release()
-            return None
+            return None, None
 
         # Sample frames uniformly
         frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
+
+        # Calculate frame times
+        frame_times = frame_indices / fps if fps > 0 else frame_indices
 
         frames = []
         for idx in frame_indices:
@@ -146,7 +179,7 @@ class ShotClassifier:
 
             if not ret or frame is None:
                 cap.release()
-                return None
+                return None, None
 
             # Resize
             frame = cv2.resize(frame, frame_size)
@@ -158,7 +191,17 @@ class ShotClassifier:
 
         cap.release()
 
-        return np.array(frames, dtype=np.uint8)
+        # Create metadata
+        metadata = {
+            'total_frames': total_frames,
+            'fps': fps,
+            'duration': total_frames / fps if fps > 0 else 0,
+            'sampled_frames': frame_indices.tolist(),
+            'sampled_times': frame_times.tolist(),
+            'num_frames_analyzed': num_frames
+        }
+
+        return np.array(frames, dtype=np.uint8), metadata
 
     def predict(self, video_path, num_frames=16):
         """
@@ -173,12 +216,13 @@ class ShotClassifier:
                 - predicted_class: str (e.g., 'Smash')
                 - confidence: float (0-1)
                 - probabilities: dict of all class probabilities
+                - metadata: dict with video and frame timing info
                 - success: bool
         """
-        # Extract frames
-        frames = self.extract_frames(video_path, num_frames=num_frames)
+        # Extract frames with metadata
+        frames, metadata = self.extract_frames(video_path, num_frames=num_frames)
 
-        if frames is None:
+        if frames is None or metadata is None:
             return {
                 'success': False,
                 'error': 'Failed to extract frames from video'
@@ -218,5 +262,6 @@ class ShotClassifier:
             'success': True,
             'predicted_class': predicted_class,
             'confidence': confidence_val,
-            'probabilities': probs_dict
+            'probabilities': probs_dict,
+            'metadata': metadata
         }
