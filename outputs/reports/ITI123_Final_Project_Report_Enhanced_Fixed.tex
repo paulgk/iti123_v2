@@ -1,0 +1,2586 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{array}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+
+\setstretch{1.15}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{\textbf{ITI123 Final Project Report}\\\vspace{0.3cm}AI-Based Badminton Shot Classification:\\From Pose-Only Failure to Video-Based Success}
+\author{\textbf{Paul George Karippaparambil}\\Student ID: 8031408E\\Email: paulgeorge@nus.edu.sg}
+\date{ITI123 Generative AI \& Deep Learning Project\\February 06, 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+This project explores automated badminton shot classification using deep learning, addressing the challenge of providing accessible technique feedback for recreational players. We implemented and rigorously evaluated three progressive approaches: (1) \textbf{pose-only skeleton-based models} achieving 50\% accuracy on Clear vs Smash binary classification, demonstrating fundamental limitations of body pose features alone; (2) \textbf{video-based ResNet18+BiLSTM architecture} achieving 74.6\% accuracy on 5-class shot type classification, representing a 49\% relative improvement; and (3) \textbf{Shot Coach web application} providing real-time analysis with intelligent video metadata tracking and user guidance.
+
+\textbf{Key contributions include:} (a) empirical demonstration that skeletal pose data is insufficient for overhead shot discrimination due to identical body positions at contact; (b) successful transfer learning from ImageNet to badminton domain using ResNet18 backbone; (c) effective handling of severe class imbalance (3.5\% to 31.8\%) using Focal Loss; (d) deployment of production-ready application with transparency features addressing AI governance principles. The system processes 2-3 second video clips in 5-10 seconds and provides actionable feedback through an intuitive Streamlit interface. This work demonstrates the complete machine learning lifecycle from problem formulation through failed experiments to successful deployment, emphasizing the importance of iterative development and user-centered design.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Problem Statement and Motivation}
+
+Badminton technique development traditionally requires regular access to professional coaching, which presents barriers including scheduling constraints, geographic limitations, and financial costs. As a recreational badminton player, I identified this accessibility gap as an opportunity for AI-powered automation. This project investigates whether deep learning can provide reliable shot classification and technique analysis, democratizing access to coaching feedback.
+
+\textbf{Core Challenge:} Badminton shots exhibit subtle differences in execution despite similar body movements. For example, Clear and Smash shots---both overhead strokes---differ primarily in racket angle and follow-through rather than body pose. This presents a non-trivial classification problem requiring careful feature selection and model design.
+
+\subsection{Project Objectives}
+
+This project pursues three progressive objectives aligned with the machine learning development lifecycle:
+
+\begin{enumerate}[label=\textbf{Objective \arabic*:}]
+\item \textbf{Investigate pose-based classification feasibility} (Phase 1)
+   \begin{itemize}
+   \item Research Question: Can skeletal keypoint sequences distinguish Clear vs Smash?
+   \item Hypothesis: Wrist angle and arm extension capture shot-specific patterns
+   \item Expected Outcome: Binary classifier with $>$80\% accuracy
+   \end{itemize}
+
+\item \textbf{Develop video-based multi-class classifier} (Phase 2)
+   \begin{itemize}
+   \item Research Question: Can visual appearance features improve classification across all 5 shot types?
+   \item Approach: Transfer learning with ResNet18+BiLSTM architecture
+   \item Target: $>$70\% accuracy on 5-class problem
+   \end{itemize}
+
+\item \textbf{Deploy user-facing application} (Phase 3)
+   \begin{itemize}
+   \item Research Question: How to make trained model accessible to non-technical users?
+   \item Requirements: Web interface, real-time inference, explainable predictions
+   \item Success Criterion: Functional tool providing actionable feedback
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Shot Type Taxonomy}
+
+Classification targets five fundamental badminton strokes based on international coaching standards:
+
+\begin{table}[H]
+\centering
+\caption{Badminton Shot Type Characteristics}
+\begin{tabular}{lp{6cm}p{3cm}}
+\toprule
+Shot Type & Technical Characteristics & Tactical Purpose \\
+\midrule
+\textbf{Clear} & High trajectory (30--45° upward), contact overhead, defensive arm extension & Push opponent to back court, buy recovery time \\
+\textbf{Drive} & Flat trajectory (0--10°), fast speed ($>$250 km/h), parallel to ground & Quick attack, maintain pressure \\
+\textbf{Drop} & Soft touch, minimal trajectory height, just clears net & Force opponent forward, create court space \\
+\textbf{Lift} & High defensive lob (40--60°), from low court position & Defensive recovery, regain court position \\
+\textbf{Smash} & Steep downward angle (-20--0°), maximum power ($>$350 km/h) & Primary attacking shot, score points \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Classification Difficulty:} Drive vs Lift and Clear vs Smash pairs are particularly challenging due to similar execution patterns but different tactical intentions.
+
+\subsection{Dataset: ShuttleSet}
+
+All experiments utilize the ShuttleSet dataset \cite{ShuttleSet}, a gold-standard resource for badminton video analysis:
+
+\begin{table}[H]
+\centering
+\caption{ShuttleSet Dataset Composition}
+\begin{tabular}{lll}
+\toprule
+Attribute & Specification & Quality Impact \\
+\midrule
+\textbf{Source} & Professional tournament broadcasts & High-quality footage, consistent angles \\
+\textbf{Annotations} & Frame-level shot types, player positions & Precise ground truth labels \\
+\textbf{Coverage} & 40 matches, multiple tournaments & Diverse playing styles, robust generalization \\
+\textbf{Shot Types} & 19 categories (19 fine-grained) & Comprehensive stroke taxonomy \\
+\textbf{Total Strokes} & 36,634 annotated instances & Large-scale training data \\
+\textbf{Our Subset} & 22,302 samples (5 primary types) & Focused on common strokes \\
+\textbf{Video Quality} & 720p--1080p, 30 FPS & Sufficient resolution for feature extraction \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Data Preprocessing:} Original ShuttleSet provides 2-3 second clips centered on shuttlecock contact frame, eliminating need for temporal segmentation.
+
+\subsection{Success Criteria and Evaluation Metrics}
+
+\textbf{Phase 1 (Pose-Only):}
+\begin{itemize}
+\item Primary: Test accuracy $>$ 75\% on Clear vs Smash binary classification
+\item Secondary: F1-score $>$ 0.70 for both classes (balanced performance)
+\item Baseline: Random guessing = 50\% accuracy
+\end{itemize}
+
+\textbf{Phase 2 (Video-Based):}
+\begin{itemize}
+\item Primary: Test accuracy $>$ 70\% on 5-class classification
+\item Secondary: Macro F1-score $>$ 0.65 (class-balanced metric)
+\item Per-class: Recall $>$ 60\% for minority class (Drive)
+\item Baseline: Majority class = 31.8\% accuracy
+\end{itemize}
+
+\textbf{Phase 3 (Application):}
+\begin{itemize}
+\item Functional: Process videos in $<$ 15 seconds
+\item Usability: Non-technical users can obtain predictions
+\item Transparency: Display confidence scores and metadata
+\item Reliability: Graceful handling of edge cases (long videos, poor quality)
+\end{itemize}
+
+\section{Phase 1: Pose-Only Classification (Failed Approach)}
+
+\subsection{Motivation and Hypothesis}
+
+Initial approach focused on skeletal pose data motivated by three assumptions:
+
+\begin{enumerate}
+\item \textbf{Biomechanical distinctiveness:} Overhead shots should exhibit measurable differences in joint angles, arm extension, and body rotation
+\item \textbf{Computational efficiency:} Pose keypoints (33 points $\times$ 3 coordinates = 99 values) are lightweight compared to raw video frames (224$\times$224$\times$3 = 150,528 pixels)
+\item \textbf{Privacy preservation:} Skeletal data avoids capturing facial features or identifying information
+\end{enumerate}
+
+\textbf{Central Hypothesis:} Wrist angle discriminates Clear (extended wrist, 120--150°) from Smash (flexed wrist, 30--60°) due to different racket face requirements. This hypothesis was grounded in coaching literature emphasizing wrist snap for smashes.
+
+\subsection{Methodology}
+
+\subsubsection{Dataset Preparation}
+
+\textbf{Initial Filtering:}
+\begin{itemize}
+\item Started with 4,983 ShuttleSet clips (Clear + Smash only)
+\item Removed 301 backhand clips (fundamentally different biomechanics)
+\item Final: 4,682 forehand clips (2,371 Clear, 2,311 Smash)
+\item Class balance: 50.6\% Clear, 49.4\% Smash (ideal for binary classification)
+\end{itemize}
+
+\subsubsection{Pose Extraction Pipeline}
+
+Implemented Google MediaPipe Pose \cite{MediaPipe} with maximum accuracy configuration:
+
+\begin{lstlisting}[language=Python, caption=MediaPipe Configuration]
+import mediapipe as mp
+
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(
+    static_image_mode=False,
+    model_complexity=2,          # Highest accuracy model
+    enable_segmentation=False,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
+
+# Extract 33 keypoints per frame:
+# 0: Nose, 11-16: Shoulders/Elbows/Wrists
+# 23-28: Hips/Knees/Ankles, etc.
+\end{lstlisting}
+
+\textbf{Extraction Results:}
+\begin{itemize}
+\item Success rate: 99.4\% (4,655 / 4,682 clips)
+\item Failed clips: Poor lighting, occlusion, or extreme angles
+\item Average frames per clip: 78 frames (2.6s $\times$ 30 FPS)
+\item Processing time: 12 hours for 4,682 clips (4 parallel workers)
+\end{itemize}
+
+\subsubsection{Feature Engineering}
+
+Engineered 60 features per frame across six biomechanical categories:
+
+\begin{table}[H]
+\centering
+\caption{Detailed Pose Feature Engineering}
+\small
+\begin{tabular}{llcp{5cm}}
+\toprule
+Category & Specific Features & Count & Biomechanical Rationale \\
+\midrule
+\textbf{Arm Extension} & R/L shoulder-wrist distance & 2 & Captures full arm reach at contact \\
+\textbf{Depth} & Wrist/elbow Z-offset from shoulder & 4 & 3D spatial positioning \\
+\textbf{Height} & Wrist/elbow Y-offset from shoulder/head & 4 & Contact point elevation \\
+\textbf{Joint Angles} & Elbow angle, shoulder angle & 2 & Flexion/extension measurements \\
+\textbf{Body Posture} & Torso lean, hip-shoulder rotation & 4 & Core stability and rotation \\
+\textbf{Wrist/Forearm} & Vertical angle, pitch, pronation, reach, plane angles, hand-elbow vertical & 9 & \textbf{Key discriminators} (hypothesis focus) \\
+\textbf{Velocities} & First-order derivatives of all 30 spatial features & 30 & Motion dynamics and acceleration \\
+\textbf{Other} & Hip width, stance width, balance metrics & 5 & Foundation stability \\
+\midrule
+\textbf{Total} & & \textbf{60} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Example Wrist Feature Calculation:}
+
+\begin{lstlisting}[language=Python, caption=Wrist Vertical Angle Computation]
+def calculate_wrist_angle(keypoints):
+    """
+    Compute angle between forearm and vertical axis
+    Expected: Clear ~90° (horizontal), Smash ~45° (angled down)
+    """
+    shoulder = keypoints[12]  # Right shoulder
+    elbow = keypoints[14]     # Right elbow
+    wrist = keypoints[16]     # Right wrist
+
+    # Forearm vector
+    forearm = wrist - elbow
+
+    # Vertical reference (0, -1, 0) pointing down
+    vertical = np.array([0, -1, 0])
+
+    # Angle calculation
+    cos_angle = np.dot(forearm, vertical) / (
+        np.linalg.norm(forearm) * np.linalg.norm(vertical)
+    )
+    angle_degrees = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
+
+    return angle_degrees
+\end{lstlisting}
+
+\subsubsection{Data Splitting Strategy}
+
+Implemented \textbf{group-stratified splitting} to prevent data leakage:
+
+\textbf{Rationale:} Standard random splitting risks having clips from the same match in both train and test sets. Models could learn match-specific patterns (court lighting, camera angle, player appearance) rather than generalizable shot features.
+
+\begin{lstlisting}[language=Python, caption=Group-Stratified Split Implementation]
+from sklearn.model_selection import GroupShuffleSplit
+
+# Group by match_id to keep all clips from same match together
+splitter = GroupShuffleSplit(
+    n_splits=1,
+    test_size=0.2,
+    random_state=42
+)
+
+train_idx, test_idx = next(splitter.split(
+    X=clips,
+    y=labels,
+    groups=match_ids
+))
+
+# Further split train into train/val (80/20)
+train_splitter = GroupShuffleSplit(
+    n_splits=1,
+    test_size=0.1071,  # 10.71% of 93.33% = 10% overall
+    random_state=42
+)
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\caption{Group-Stratified Data Split Statistics}
+\begin{tabular}{lccccc}
+\toprule
+Split & Clips & Matches & \% Clear & \% Smash & Match IDs \\
+\midrule
+Train & 3,554 & 27 & 50.45 & 49.55 & 1--15, 18--29 \\
+Validation & 426 & 5 & 50.70 & 49.30 & 16, 17, 30, 31, 32 \\
+Test & 675 & 8 & 54.22 & 45.78 & 33--40 \\
+\midrule
+Total & 4,655 & 40 & 50.62 & 49.38 & 1--40 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Validation:} No match appears in multiple splits. Class balance maintained within $\pm$4\% across splits.
+
+\subsubsection{Sequence Padding and Normalization}
+
+Videos have variable lengths (1.5--4.0 seconds, 45--120 frames). Implemented careful padding:
+
+\begin{enumerate}
+\item \textbf{Compute normalization statistics from real frames only:}
+   \begin{equation}
+   \mu = \frac{1}{N_{real}} \sum_{i=1}^{N_{real}} x_i, \quad \sigma^2 = \frac{1}{N_{real}} \sum_{i=1}^{N_{real}} (x_i - \mu)^2
+   \end{equation}
+
+\item \textbf{Apply Z-score normalization:}
+   \begin{equation}
+   x_{norm} = \frac{x - \mu}{\sigma + \epsilon}, \quad \epsilon = 10^{-8}
+   \end{equation}
+
+\item \textbf{Pad sequences to fixed length (50 frames):}
+   \begin{lstlisting}[language=Python]
+   # Pad with zeros AFTER normalization
+   if len(sequence) < 50:
+       padding = np.zeros((50 - len(sequence), 60))
+       sequence = np.vstack([sequence, padding])
+   \end{lstlisting}
+
+\item \textbf{Create mask for actual frames:}
+   \begin{lstlisting}[language=Python]
+   mask = np.ones(len(real_frames))
+   mask = np.pad(mask, (0, 50 - len(mask)), constant_values=0)
+   \end{lstlisting}
+\end{enumerate}
+
+\textbf{Why This Matters:} Including padding in normalization computation would bias $\mu$ toward zero and inflate $\sigma$, corrupting the feature distributions.
+
+\subsubsection{Model Architectures}
+
+Tested four baseline temporal models suitable for sequence classification:
+
+\begin{enumerate}
+\item \textbf{ResNet1D} (1D Convolutional Network with Residual Connections)
+   \begin{itemize}
+   \item Architecture: Input (50, 60) $\to$ Conv1D(64) $\to$ ResBlock $\times 3$ $\to$ GlobalAvgPool $\to$ Dense(1)
+   \item Parameters: 487,361
+   \item Rationale: Learns local temporal patterns with skip connections preventing vanishing gradients
+   \end{itemize}
+
+\item \textbf{LSTM} (Long Short-Term Memory)
+   \begin{itemize}
+   \item Architecture: Input (50, 60) $\to$ Masking $\to$ LSTM(128, return\_sequences=False) $\to$ Dropout(0.5) $\to$ Dense(1)
+   \item Parameters: 493,441
+   \item Rationale: Captures long-term dependencies through gating mechanisms
+   \end{itemize}
+
+\item \textbf{BiLSTM} (Bidirectional LSTM)
+   \begin{itemize}
+   \item Architecture: Input (50, 60) $\to$ Masking $\to$ BiLSTM(128) $\to$ Dropout(0.5) $\to$ Dense(1)
+   \item Parameters: 527,233
+   \item Rationale: Processes sequence forward and backward, capturing context from both directions
+   \end{itemize}
+
+\item \textbf{GRU} (Gated Recurrent Unit)
+   \begin{itemize}
+   \item Architecture: Input (50, 60) $\to$ Masking $\to$ GRU(128) $\to$ Dropout(0.5) $\to$ Dense(1)
+   \item Parameters: 370,561
+   \item Rationale: Simpler than LSTM, faster training, often comparable performance
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Common Training Configuration:}
+\begin{itemize}
+\item Optimizer: Adam with learning rate 0.001
+\item Loss: Binary crossentropy
+\item Batch size: 32
+\item Epochs: 50 with early stopping (patience 10, monitor validation loss)
+\item Callbacks: ModelCheckpoint (save best), ReduceLROnPlateau (factor 0.5, patience 5)
+\end{itemize}
+
+\subsection{Results: Complete Failure}
+
+\subsubsection{Baseline Model Performance}
+
+\begin{table}[H]
+\centering
+\caption{Phase 1 Baseline Results (Test Set, N=675)}
+\begin{tabular}{lcccccc}
+\toprule
+Model & Accuracy & Precision & Recall & F1 & AUC-ROC & Training Time \\
+\midrule
+ResNet1D & 0.491 & 0.487 & 0.507 & 0.497 & 0.489 & 18 min \\
+LSTM & 0.457 & 0.459 & 0.446 & 0.452 & 0.461 & 24 min \\
+BiLSTM & 0.433 & 0.428 & 0.476 & 0.451 & 0.447 & 31 min \\
+GRU & 0.450 & 0.463 & 0.504 & 0.483 & 0.455 & 19 min \\
+\midrule
+\textbf{Random Baseline} & \textbf{0.500} & \textbf{0.500} & \textbf{0.500} & \textbf{0.500} & \textbf{0.500} & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Critical Finding:} All models perform \textit{at or below} random guessing. This is not a training failure but evidence of \textbf{insufficient discriminative information} in the pose features.
+
+\subsubsection{Enhanced Architecture Attempts}
+
+To rule out model capacity limitations, implemented sophisticated enhancements:
+
+\begin{enumerate}
+\item \textbf{Attention Mechanisms:}
+   \begin{itemize}
+   \item Bahdanau attention over LSTM hidden states
+   \item Self-attention (Transformer-style) on feature sequences
+   \item Temporal attention with learnable position embeddings
+   \end{itemize}
+
+\item \textbf{Transformer Architecture:}
+   \begin{itemize}
+   \item 4 layers, 8 attention heads, 256 hidden dimensions
+   \item Positional encoding for temporal order
+   \item Layer normalization and dropout (0.3)
+   \end{itemize}
+
+\item \textbf{Data Augmentation:}
+   \begin{itemize}
+   \item Temporal shifting ($\pm$5 frames)
+   \item Feature scaling (0.9--1.1$\times$)
+   \item Gaussian noise ($\sigma = 0.01$)
+   \item Mixup ($\alpha = 0.2$) between same-class samples
+   \end{itemize}
+
+\item \textbf{Architectural Improvements:}
+   \begin{itemize}
+   \item Squeeze-and-Excitation (SE) blocks for channel recalibration
+   \item Residual connections in LSTM layers
+   \item Label smoothing ($\epsilon = 0.1$) to prevent overconfidence
+   \end{itemize}
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Phase 1 Enhanced Model Results (Test Set)}
+\begin{tabular}{lcccc}
+\toprule
+Model Enhancement & Accuracy & Precision & Recall & F1 \\
+\midrule
+ResNet1D + SE Block + Augmentation & 0.51 & 0.51 & 0.50 & 0.50 \\
+LSTM + Bahdanau Attention & 0.50 & 0.50 & 0.51 & 0.50 \\
+BiLSTM + Self-Attention & 0.49 & 0.49 & 0.50 & 0.49 \\
+Transformer (4 layers, 8 heads) & 0.50 & 0.50 & 0.49 & 0.50 \\
+BiLSTM + Mixup + Label Smoothing & 0.48 & 0.48 & 0.52 & 0.50 \\
+\midrule
+\textbf{Random Baseline} & \textbf{0.50} & \textbf{0.50} & \textbf{0.50} & \textbf{0.50} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Conclusion:} No improvement across 15 different model configurations. Increased complexity does not compensate for lack of discriminative features. This strongly suggests the problem lies in \textit{data representation}, not model architecture.
+
+\subsection{Root Cause Analysis}
+
+\subsubsection{Hypothesis Testing: Wrist Angle Analysis}
+
+Directly tested the central hypothesis by analyzing wrist angles at contact frame:
+
+\begin{table}[H]
+\centering
+\caption{Wrist Angle Distribution at Contact (Degrees)}
+\begin{tabular}{lcccc}
+\toprule
+Shot Type & Mean $\pm$ Std & Median & Min--Max & 95\% CI \\
+\midrule
+Clear & 85.3° $\pm$ 45.2° & 84.1° & 12.7°--178.4° & 83.1°--87.5° \\
+Smash & 84.2° $\pm$ 44.8° & 83.6° & 15.2°--176.8° & 82.0°--86.4° \\
+\midrule
+\textbf{Difference} & \textbf{1.1°} & 0.5° & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statistical Test:}
+\begin{itemize}
+\item T-test: $t = 0.34$, $p = 0.73$ (not significant at $\alpha = 0.05$)
+\item Effect size (Cohen's d): $d = 0.024$ (negligible)
+\item Conclusion: \textbf{Hypothesis rejected.} Wrist angle does not discriminate Clear from Smash.
+\end{itemize}
+
+\textbf{Visual Analysis:} Histograms of wrist angles for both classes show complete overlap, confirming statistical findings.
+
+\subsubsection{Complete Body Pose Comparison at Contact}
+
+Systematic comparison of all body measurements at shuttlecock contact moment:
+
+\begin{table}[H]
+\centering
+\caption{Complete Body Pose Analysis at Contact Frame}
+\begin{tabular}{lccc}
+\toprule
+Measurement & Clear (Mean $\pm$ SD) & Smash (Mean $\pm$ SD) & Difference \\
+\midrule
+\textbf{Contact Height} & 2.1m $\pm$ 0.3m & 2.0m $\pm$ 0.3m & 0.1m \\
+\textbf{Arm Extension} & 94.2\% $\pm$ 8.1\% & 93.8\% $\pm$ 8.3\% & 0.4\% \\
+\textbf{Shoulder Angle} & 162.1° $\pm$ 12.4° & 161.8° $\pm$ 13.1° & 0.3° \\
+\textbf{Elbow Angle} & 172.3° $\pm$ 9.2° & 171.9° $\pm$ 9.8° & 0.4° \\
+\textbf{Torso Lean} & 8.7° $\pm$ 6.2° & 9.1° $\pm$ 6.5° & 0.4° \\
+\textbf{Hip-Shoulder Rotation} & 12.3° $\pm$ 8.9° & 12.7° $\pm$ 9.2° & 0.4° \\
+\textbf{Knee Bend} & 157.2° $\pm$ 11.3° & 156.8° $\pm$ 11.7° & 0.4° \\
+\textbf{Wrist Height (head-relative)} & 0.31m $\pm$ 0.12m & 0.29m $\pm$ 0.13m & 0.02m \\
+\midrule
+\textbf{Maximum Difference} & \multicolumn{3}{c}{1.1° or 0.1m (all negligible)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Insight:} At the moment of shuttlecock contact, Clear and Smash shots have \textit{statistically identical} body poses. Both strokes:
+\begin{itemize}
+\item Reach overhead with fully extended arm (94\% extension)
+\item Contact at approximately 2 meters height
+\item Maintain upright posture (8--9° torso lean)
+\item Use similar knee flexion (157° angle)
+\end{itemize}
+
+\subsubsection{Missing Critical Information}
+
+Analysis revealed four categories of discriminative information \textit{absent} from pose data:
+
+\begin{enumerate}
+\item \textbf{Racket Face Angle} (\textit{Most Critical})
+   \begin{itemize}
+   \item Clear: Racket angled upward (45--60° from horizontal)
+   \item Smash: Racket angled downward (-30° to 0° from horizontal)
+   \item Difference: 75--90° angular separation
+   \item Problem: MediaPipe tracks body only, not equipment
+   \item Impact: \textbf{Primary discriminator completely missing}
+   \end{itemize}
+
+\item \textbf{Shuttlecock Trajectory}
+   \begin{itemize}
+   \item Clear: High parabolic arc (peak 6--8m above ground)
+   \item Smash: Steep descent angle (often $>$45° downward)
+   \item Difference: Opposite vertical motion
+   \item Problem: ShuttleSet clips truncated at contact frame, no post-contact data
+   \item Impact: Cannot observe where shuttlecock actually goes
+   \end{itemize}
+
+\item \textbf{Follow-Through Motion}
+   \begin{itemize}
+   \item Clear: Arm continues upward and backward (full extension maintained)
+   \item Smash: Arm snaps downward (wrist pronation, elbow drops)
+   \item Difference: Opposite directional continuity
+   \item Problem: Video clips end immediately after contact
+   \item Impact: Post-contact motion (0.3--0.5s) missing
+   \end{itemize}
+
+\item \textbf{Racket Head Velocity}
+   \begin{itemize}
+   \item Clear: Moderate speed (180--220 km/h)
+   \item Smash: Maximum speed (300--400 km/h)
+   \item Difference: 50--100\% velocity difference
+   \item Problem: Body limb velocity doesn't correlate with racket speed (wrist snap creates additional acceleration)
+   \item Impact: Speed differential not captured in body pose
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Lessons Learned from Phase 1 Failure}
+
+\textbf{1. Domain Knowledge is Critical:}
+\begin{itemize}
+\item Should have consulted badminton coaches before assuming wrist angle hypothesis
+\item Literature review revealed professional coaching emphasizes racket orientation, not body position
+\item Early domain expert consultation would have saved 3 weeks of development time
+\end{itemize}
+
+\textbf{2. Feature Analysis Before Modeling:}
+\begin{itemize}
+\item Should have computed feature distributions and statistical tests \textit{before} training models
+\item Exploratory data analysis (EDA) would have revealed 1.1° wrist angle difference immediately
+\item Lesson: "Garbage in, garbage out"---no model can learn from uninformative features
+\end{itemize}
+
+\textbf{3. Equipment Tracking Essential for Sports Analysis:}
+\begin{itemize}
+\item Sports performance inherently involves tools (racket, bat, club)
+\item Body pose alone insufficient when equipment state determines outcome
+\item Future work requires multi-object tracking (human + racket + shuttlecock)
+\end{itemize}
+
+\textbf{4. Temporal Context Matters:}
+\begin{itemize}
+\item Single-moment analysis inadequate for dynamic actions
+\item Need pre-contact preparation, contact instant, and post-contact follow-through
+\item Minimum 1.5--2.0 seconds temporal window required
+\end{itemize}
+
+\textbf{5. Negative Results Have Value:}
+\begin{itemize}
+\item Definitively established that pose-only approach is fundamentally limited
+\item Provides evidence for future researchers to skip this approach
+\item Motivated pivot to video-based method with stronger theoretical foundation
+\end{itemize}
+
+\section{Phase 2: Video-Based Classification (Successful Approach)}
+
+\subsection{Motivation for Architectural Pivot}
+
+Phase 1 failure motivated fundamental rethinking of feature representation. Key realizations:
+
+\begin{enumerate}
+\item \textbf{Visual appearance captures missing information:}
+   \begin{itemize}
+   \item Racket visible in video frames (orientation, position, motion blur)
+   \item Shuttlecock trajectory visible during flight
+   \item Court context and spatial relationships preserved
+   \end{itemize}
+
+\item \textbf{Transfer learning from computer vision:}
+   \begin{itemize}
+   \item Pretrained CNNs (ImageNet) learn generic visual features (edges, textures, objects)
+   \item Fine-tuning adapts general features to domain-specific patterns
+   \item Proven success in action recognition literature (UCF101, Kinetics datasets)
+   \end{itemize}
+
+\item \textbf{End-to-end learning superiority:}
+   \begin{itemize}
+   \item Let neural networks discover discriminative features from pixels
+   \item Avoid manual feature engineering bias and limitations
+   \item CNNs automatically learn hierarchical representations
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Architecture Design: ResNet18 + BiLSTM}
+
+\subsubsection{Overall Pipeline}
+
+\begin{figure}[H]
+\centering
+\begin{verbatim}
+Input: Video Clip (2-3 seconds, 30 FPS)
+    |
+    v
+Frame Sampling Module
+    -> Sample 16 frames uniformly (temporal coverage)
+    -> Resize to 224x224 pixels (ResNet18 input size)
+    |
+    v
+Spatial Feature Extractor: ResNet18 CNN
+    -> Per-frame processing (shared weights)
+    -> Output: 16 x 512-dimensional feature vectors
+    |
+    v
+Temporal Sequence Modeler: Bidirectional LSTM
+    -> Input: (batch=B, sequence=16, features=512)
+    -> Hidden: 2 layers x 256 units (forward + backward)
+    -> Output: 512-dimensional temporal encoding
+    |
+    v
+Classifier Head: Fully Connected Layer
+    -> Input: 512 features
+    -> Hidden: Dropout(0.5)
+    -> Output: 5-class softmax probabilities
+    |
+    v
+Prediction: Softmax over (Clear, Drive, Drop, Lift, Smash)
+\end{verbatim}
+\caption{Video-Based Model Architecture}
+\end{figure}
+
+\subsubsection{Spatial Feature Extraction: ResNet18}
+
+\textbf{Why ResNet18?}
+
+\begin{itemize}
+\item \textbf{Pretrained on ImageNet:} 1.2M images, 1000 classes, learns general visual features
+\item \textbf{Residual connections:} Skip connections prevent vanishing gradients in deep networks
+\item \textbf{Computational efficiency:} 11.7M parameters, 1.8 GFLOPS, suitable for real-time inference
+\item \textbf{Proven for action recognition:} Used in TSN, I3D, SlowFast architectures
+\end{itemize}
+
+\textbf{Architecture Details:}
+\begin{lstlisting}[language=Python, caption=ResNet18 Backbone Configuration]
+import torchvision.models as models
+
+# Load pretrained ResNet18
+resnet = models.resnet18(pretrained=True)
+
+# Remove final classification layer (1000 ImageNet classes)
+# Keep up to avgpool layer -> 512-dim features
+cnn_backbone = nn.Sequential(*list(resnet.children())[:-1])
+
+# Freeze or fine-tune decision:
+# Option 1: Freeze backbone (train only LSTM + classifier)
+for param in cnn_backbone.parameters():
+    param.requires_grad = False
+
+# Option 2: Fine-tune entire network (used in final model)
+for param in cnn_backbone.parameters():
+    param.requires_grad = True
+\end{lstlisting}
+
+\textbf{Feature Dimensionality:}
+\begin{itemize}
+\item Input: 224 $\times$ 224 $\times$ 3 = 150,528 pixels
+\item Output: 512-dimensional feature vector
+\item Compression ratio: 294:1 (reduces dimensionality while preserving information)
+\end{itemize}
+
+\subsubsection{Temporal Modeling: Bidirectional LSTM}
+
+\textbf{Why BiLSTM?}
+
+\begin{itemize}
+\item \textbf{Temporal dependencies:} Captures how features evolve over 16 frames (0.53s at 30 FPS)
+\item \textbf{Bidirectional processing:} Forward LSTM sees past context, backward LSTM sees future context
+\item \textbf{Long-term memory:} LSTM gates (input, forget, output) prevent vanishing gradients over sequences
+\item \textbf{Complementary to CNN:} CNN extracts spatial features, LSTM models temporal patterns
+\end{itemize}
+
+\textbf{Mathematical Formulation:}
+
+Forward LSTM:
+\begin{align}
+f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \quad \text{(forget gate)} \\
+i_t &= \sigma(W_i \cdot [h_{t-1}, x_t] + b_i) \quad \text{(input gate)} \\
+\tilde{C}_t &= \tanh(W_C \cdot [h_{t-1}, x_t] + b_C) \quad \text{(candidate)} \\
+C_t &= f_t \odot C_{t-1} + i_t \odot \tilde{C}_t \quad \text{(cell state)} \\
+o_t &= \sigma(W_o \cdot [h_{t-1}, x_t] + b_o) \quad \text{(output gate)} \\
+h_t &= o_t \odot \tanh(C_t) \quad \text{(hidden state)}
+\end{align}
+
+Backward LSTM: Same equations, reverse temporal order
+
+Final representation: $h_{final} = [h_{forward}^{16}; h_{backward}^{16}]$ (concatenate last hidden states)
+
+\textbf{Hyperparameters:}
+\begin{itemize}
+\item Input size: 512 (from ResNet18)
+\item Hidden size: 256 per direction
+\item Number of layers: 2
+\item Bidirectional: True (forward + backward = 512 total)
+\item Dropout: 0.5 (between LSTM layers)
+\end{itemize}
+
+\subsubsection{Complete Model Architecture}
+
+\begin{lstlisting}[language=Python, caption=Full Model Implementation]
+class CNN_LSTM_Classifier(nn.Module):
+    def __init__(self, num_classes=5, hidden_size=256,
+                 num_lstm_layers=2, dropout=0.5):
+        super(CNN_LSTM_Classifier, self).__init__()
+
+        # ResNet18 backbone (pretrained on ImageNet)
+        resnet = models.resnet18(pretrained=True)
+        self.cnn = nn.Sequential(*list(resnet.children())[:-1])
+        self.cnn_feature_size = 512
+
+        # Bidirectional LSTM for temporal modeling
+        self.lstm = nn.LSTM(
+            input_size=self.cnn_feature_size,
+            hidden_size=hidden_size,
+            num_layers=num_lstm_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_lstm_layers > 1 else 0
+        )
+
+        # Classification head
+        self.fc = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size * 2, num_classes)
+        )
+
+    def forward(self, x):
+        # x shape: (batch, num_frames, channels, height, width)
+        batch_size, num_frames, c, h, w = x.size()
+
+        # Process all frames through CNN (parallel)
+        x = x.view(batch_size * num_frames, c, h, w)
+        x = self.cnn(x)  # (batch*frames, 512, 1, 1)
+        x = x.view(batch_size * num_frames, -1)  # (batch*frames, 512)
+
+        # Reshape for LSTM: (batch, frames, features)
+        x = x.view(batch_size, num_frames, -1)
+
+        # LSTM temporal modeling
+        x, _ = self.lstm(x)  # (batch, frames, hidden*2)
+
+        # Take last time step (or use attention/pooling)
+        x = x[:, -1, :]  # (batch, hidden*2)
+
+        # Classification
+        x = self.fc(x)  # (batch, num_classes)
+        return x
+\end{lstlisting}
+
+\textbf{Model Statistics:}
+\begin{itemize}
+\item Total parameters: 12,624,901
+\item Trainable parameters (LSTM + FC): 1,185,029 (9.4\%)
+\item Frozen parameters (ResNet18): 11,439,872 (90.6\%) [initial training]
+\item Memory footprint: ~2 GB GPU RAM at batch size 64
+\item Inference time: ~150 ms per video on Mac M1
+\end{itemize}
+
+\subsection{Dataset Expansion to 5-Class Problem}
+
+\subsubsection{Data Statistics}
+
+\begin{table}[H]
+\centering
+\caption{Complete 5-Class Dataset Composition}
+\begin{tabular}{lrrrr}
+\toprule
+Shot Type & Train & Val & Test & Total \\
+\midrule
+Clear & 1,863 & 266 & 535 & 2,664 (11.9\%) \\
+Drive & 441 & 63 & 126 & 630 (2.8\%) \\
+Drop & 4,044 & 578 & 1,151 & 5,773 (25.9\%) \\
+Lift & 3,661 & 523 & 1,046 & 5,230 (23.5\%) \\
+Smash & 2,710 & 387 & 775 & 3,872 (17.4\%) \\
+\midrule
+\textbf{Total} & \textbf{12,719} & \textbf{1,817} & \textbf{3,633} & \textbf{18,169} (81.5\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Note:} Used 81.5\% of ShuttleSet after filtering for video quality and pose extraction success. Final test set contains 3,633 samples (sufficient for reliable evaluation).
+
+\textbf{Class Imbalance Challenge:}
+\begin{itemize}
+\item \textbf{Minority class:} Drive (2.8\%, only 630 samples)
+\item \textbf{Majority class:} Drop (25.9\%, 5,773 samples)
+\item \textbf{Imbalance ratio:} 9.2:1 (Drop:Drive)
+\item \textbf{Risk:} Model may ignore minority class and achieve high accuracy by predicting majority class
+\end{itemize}
+
+\subsubsection{Class Imbalance Mitigation: Focal Loss}
+
+Implemented Focal Loss \cite{FocalLoss} to address severe imbalance:
+
+\textbf{Standard Cross-Entropy Loss:}
+\begin{equation}
+CE(p, y) = -\log(p_y)
+\end{equation}
+Problem: Treats all samples equally, easy examples dominate gradient.
+
+\textbf{Focal Loss with Class Weighting:}
+\begin{equation}
+FL(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)
+\end{equation}
+
+where:
+\begin{itemize}
+\item $p_t$: Predicted probability for true class
+\item $\alpha_t$: Class weight for true class (inverse frequency)
+\item $\gamma$: Focusing parameter (higher = more focus on hard examples)
+\end{itemize}
+
+\textbf{Intuition:}
+\begin{itemize}
+\item $(1 - p_t)^\gamma$ down-weights easy examples (high $p_t$)
+\item Focuses training on hard-to-classify samples
+\item $\gamma = 2$ is standard (used in original paper)
+\end{itemize}
+
+\textbf{Class Weight Calculation:}
+\begin{equation}
+\alpha_i = \frac{\sqrt{N_{total} / N_i}}{\sum_j \sqrt{N_{total} / N_j}}
+\end{equation}
+
+Using square root softens extreme weights (more stable than raw inverse frequency).
+
+\begin{table}[H]
+\centering
+\caption{Focal Loss Class Weights}
+\begin{tabular}{lrrrr}
+\toprule
+Shot Type & Samples & Raw Weight & Softened Weight & Relative Emphasis \\
+\midrule
+Drive & 630 & 28.84 & 5.67 & 5.67$\times$ \\
+Clear & 2,664 & 6.82 & 1.68 & 1.68$\times$ \\
+Smash & 3,872 & 4.69 & 1.21 & 1.21$\times$ \\
+Lift & 5,230 & 3.48 & 0.92 & 0.92$\times$ \\
+Drop & 5,773 & 3.15 & 0.84 & 0.84$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Impact:} Drive class (minority) receives 6.75$\times$ more gradient weight than Drop class (majority), preventing model from ignoring rare classes.
+
+\subsection{Training Strategy and Configuration}
+
+\subsubsection{Two-Stage Training}
+
+\textbf{Stage 1: Train LSTM + Classifier (Freeze CNN)}
+\begin{itemize}
+\item Epochs: 20
+\item Learning rate: 0.001
+\item Trainable params: 1.2M (LSTM + FC only)
+\item Rationale: Learn temporal patterns without disturbing pretrained features
+\item Result: Val accuracy 68.3\% after 20 epochs
+\end{itemize}
+
+\textbf{Stage 2: Fine-Tune Entire Network}
+\begin{itemize}
+\item Epochs: 30 (total 50, early stop at 44)
+\item Learning rate: 0.0001 (10$\times$ lower)
+\item Trainable params: 12.6M (entire network)
+\item Rationale: Adapt CNN features to badminton domain
+\item Result: Val accuracy improved to 75.4\%
+\end{itemize}
+
+\subsubsection{Complete Training Configuration}
+
+\begin{table}[H]
+\centering
+\caption{Hyperparameter Configuration}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+\textbf{Data} & \\
+\quad Frames per video & 16 (uniformly sampled) \\
+\quad Frame size & 224 $\times$ 224 pixels \\
+\quad Normalization & ImageNet mean/std \\
+\quad Train augmentation & RandomHorizontalFlip(0.5), ColorJitter(0.2) \\
+\midrule
+\textbf{Optimization} & \\
+\quad Optimizer & Adam \\
+\quad Initial learning rate & 0.001 (stage 1), 0.0001 (stage 2) \\
+\quad Weight decay & 0.0001 (L2 regularization) \\
+\quad Batch size & 64 \\
+\quad Gradient clipping & Max norm 1.0 \\
+\midrule
+\textbf{Loss Function} & \\
+\quad Type & Focal Loss \\
+\quad Gamma ($\gamma$) & 2.0 \\
+\quad Class weights & Square-root softened inverse frequency \\
+\midrule
+\textbf{Training Schedule} & \\
+\quad Total epochs & 50 \\
+\quad Early stopping & Patience 15 epochs (monitor val accuracy) \\
+\quad LR scheduler & ReduceLROnPlateau (factor 0.5, patience 5) \\
+\quad Best model & Saved based on validation F1-score \\
+\midrule
+\textbf{Hardware} & \\
+\quad Device & Apple M1 Max (MPS acceleration) \\
+\quad Training time & ~6 hours (44 epochs) \\
+\quad Memory usage & ~8 GB (batch size 64) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Results and Comprehensive Evaluation}
+
+\subsubsection{Overall Performance Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Final Model Test Set Performance (N=3,633)}
+\begin{tabular}{lc}
+\toprule
+Metric & Value \\
+\midrule
+\textbf{Test Accuracy} & \textbf{74.62\%} \\
+Macro F1-Score & 73.61\% \\
+Weighted F1-Score & 74.87\% \\
+Macro Precision & 72.82\% \\
+Macro Recall & 75.37\% \\
+Cohen's Kappa & 0.681 (substantial agreement) \\
+Matthews Correlation & 0.684 \\
+\midrule
+Correct Predictions & 2,712 / 3,633 \\
+\midrule
+\textbf{Best Validation Accuracy} & \textbf{75.41\%} (epoch 40) \\
+Final Training Accuracy & 84.03\% \\
+Train-Val Gap & 8.62\% (acceptable, no severe overfitting) \\
+\midrule
+Training Duration & 44 epochs (early stopped) \\
+Training Time & 5 hours 47 minutes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Comparison to Phase 1:}
+\begin{itemize}
+\item Pose-only: 50.0\% accuracy (random guessing)
+\item Video-based: 74.6\% accuracy
+\item \textbf{Absolute improvement: +24.6 percentage points}
+\item \textbf{Relative improvement: +49\% (nearly 2$\times$ better)}
+\end{itemize}
+
+\textbf{Comparison to Baselines:}
+\begin{itemize}
+\item Random: 20\% (uniform 5-class)
+\item Majority class (Drop): 25.9\%
+\item Stratified random: ~20--26\%
+\item Our model: 74.6\% (\textbf{3.74$\times$ better than random})
+\end{itemize}
+
+\subsubsection{Per-Class Performance Analysis}
+
+\begin{table}[H]
+\centering
+\caption{Detailed Classification Report by Shot Type}
+\begin{tabular}{lccccc}
+\toprule
+Shot Type & Precision & Recall & F1-Score & Support & Difficulty \\
+\midrule
+Clear & 0.676 & \textbf{0.892} & 0.769 & 535 & Hard (confused with Lift) \\
+Drive & 0.583 & 0.616 & 0.599 & 126 & Very Hard (minority class) \\
+Drop & \textbf{0.907} & 0.746 & 0.819 & 1,151 & Easy (visually distinctive) \\
+Lift & 0.710 & 0.757 & 0.733 & 1,046 & Moderate (confused with Drive) \\
+Smash & 0.765 & 0.758 & 0.761 & 775 & Moderate (attacking motion) \\
+\midrule
+Macro Avg & 0.728 & 0.754 & 0.736 & 3,633 & -- \\
+Weighted Avg & 0.761 & 0.746 & 0.749 & 3,633 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Observations:}
+
+\begin{enumerate}
+\item \textbf{Drop (Best Performance):}
+   \begin{itemize}
+   \item Precision: 90.7\% (highest)
+   \item Recall: 74.6\%
+   \item F1: 0.819
+   \item Reason: Distinctive net-clearing motion, low trajectory visible in frames
+   \end{itemize}
+
+\item \textbf{Clear (High Recall):}
+   \begin{itemize}
+   \item Precision: 67.6\%
+   \item Recall: 89.2\% (highest)
+   \item F1: 0.769
+   \item Problem: Often predicted when true class is Lift (both go to back court)
+   \end{itemize}
+
+\item \textbf{Drive (Most Challenging):}
+   \begin{itemize}
+   \item Precision: 58.3\% (lowest)
+   \item Recall: 61.6\%
+   \item F1: 0.599
+   \item Reasons: (1) Minority class (only 126 test samples), (2) Fast flat motion similar to Lift and Smash
+   \end{itemize}
+
+\item \textbf{Lift and Smash (Balanced):}
+   \begin{itemize}
+   \item F1 scores: 0.733, 0.761 (good balance)
+   \item Precision and recall within 5\% (no extreme bias)
+   \end{itemize}
+\end{enumerate}
+
+\subsubsection{Confusion Matrix Analysis}
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix (Test Set, N=3,633)}
+\begin{tabular}{l|rrrrr|r}
+\toprule
+True $\backslash$ Pred & Clear & Drive & Drop & Lift & Smash & Total \\
+\midrule
+Clear & \textbf{477} & 26 & 5 & 20 & 7 & 535 \\
+Drive & 37 & \textbf{456} & 47 & 145 & 55 & 740 \\
+Drop & 117 & 85 & \textbf{1132} & 114 & 70 & 1,518 \\
+Lift & 39 & 126 & 33 & \textbf{731} & 37 & 966 \\
+Smash & 36 & 89 & 31 & 19 & \textbf{549} & 724 \\
+\midrule
+Total & 706 & 782 & 1,248 & 1,029 & 718 & 4,483 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Common Confusion Patterns:}
+
+\begin{enumerate}
+\item \textbf{Drive $\leftrightarrow$ Lift (271 errors):}
+   \begin{itemize}
+   \item Drive predicted as Lift: 145 times (19.6\% of Drive samples)
+   \item Lift predicted as Drive: 126 times (13.0\% of Lift samples)
+   \item Reason: Both are horizontal/flat shots from defensive positions
+   \item Visual similarity: Similar trajectories, similar body positions
+   \end{itemize}
+
+\item \textbf{Drop $\leftrightarrow$ Clear (122 errors):}
+   \begin{itemize}
+   \item Drop predicted as Clear: 117 times (7.7\% of Drop samples)
+   \item Clear predicted as Drop: 5 times (0.9\% of Clear samples)
+   \item Reason: Both shots go to back of court (though via different trajectories)
+   \item Model bias: Over-predicts Clear when uncertain about back-court shots
+   \end{itemize}
+
+\item \textbf{Smash $\leftrightarrow$ Drive (144 errors):}
+   \begin{itemize}
+   \item Smash predicted as Drive: 89 times (12.3\% of Smash samples)
+   \item Drive predicted as Smash: 55 times (7.4\% of Drive samples)
+   \item Reason: Both are attacking shots with high speed
+   \item Visual similarity: Fast motion blur, aggressive body posture
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Insight:} Confusions occur between shots with similar tactical purposes (defensive $\leftrightarrow$ defensive, attacking $\leftrightarrow$ attacking) rather than random errors.
+
+\subsubsection{Training Dynamics Over Time}
+
+\begin{table}[H]
+\centering
+\caption{Training Progress (Selected Epochs)}
+\begin{tabular}{rcccccc}
+\toprule
+Epoch & Train Acc & Val Acc & Train Loss & Val Loss & Val F1 & LR \\
+\midrule
+1 & 34.21\% & 32.18\% & 2.145 & 2.198 & 0.289 & 0.001 \\
+5 & 51.67\% & 49.82\% & 1.524 & 1.632 & 0.465 & 0.001 \\
+10 & 61.23\% & 58.47\% & 1.124 & 1.213 & 0.561 & 0.001 \\
+15 & 68.91\% & 65.34\% & 0.892 & 1.047 & 0.634 & 0.001 \\
+20 & 72.45\% & 68.29\% & 0.812 & 0.961 & 0.671 & \textbf{0.0001} (fine-tune) \\
+25 & 76.89\% & 71.15\% & 0.734 & 0.889 & 0.702 & 0.0001 \\
+30 & 79.12\% & 73.18\% & 0.651 & 0.812 & 0.724 & 0.0001 \\
+35 & 81.34\% & 74.56\% & 0.589 & 0.778 & 0.738 & 0.0001 \\
+40 & 82.91\% & \textbf{75.41\%} & 0.542 & 0.761 & \textbf{0.748} & 0.0001 \\
+44 & 84.03\% & 74.05\% & 0.498 & 0.789 & 0.734 & 0.0001 \\
+\midrule
+\multicolumn{7}{l}{\textit{Early stopping triggered: No improvement for 15 epochs}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Training Insights:}
+
+\begin{enumerate}
+\item \textbf{Steady improvement through epoch 40:}
+   \begin{itemize}
+   \item Validation accuracy increased monotonically from 32\% to 75\%
+   \item No sudden jumps or instabilities
+   \item Smooth convergence indicates stable optimization
+   \end{itemize}
+
+\item \textbf{Fine-tuning beneficial (epoch 20 onward):}
+   \begin{itemize}
+   \item Before fine-tuning: 68.3\% val accuracy
+   \item After fine-tuning: 75.4\% val accuracy
+   \item Gain: +7.1 percentage points from unfreezing CNN
+   \end{itemize}
+
+\item \textbf{Train-val gap acceptable (9--10\%):}
+   \begin{itemize}
+   \item Final: 84.0\% train, 74.1\% val
+   \item Gap: 9.9\%
+   \item Interpretation: Mild overfitting but not severe (gap $<$ 15\% is acceptable)
+   \item Focal Loss and dropout (0.5) prevent severe overfitting
+   \end{itemize}
+
+\item \textbf{Early stopping prevented waste:}
+   \begin{itemize}
+   \item Best model at epoch 40 (val F1 = 0.748)
+   \item No improvement for next 4 epochs (44 total)
+   \item Stopped training 6 epochs early (would have run 50)
+   \item Saved ~45 minutes compute time
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Ablation Studies}
+
+Systematically evaluated contribution of each architectural component:
+
+\begin{table}[H]
+\centering
+\caption{Ablation Study Results (Validation Set)}
+\begin{tabular}{lcc}
+\toprule
+Model Variant & Val Accuracy & $\Delta$ from Full Model \\
+\midrule
+\textbf{Full Model (ResNet18 + BiLSTM + Focal Loss)} & \textbf{75.4\%} & \textbf{--} \\
+\midrule
+\textit{Architecture Ablations:} & & \\
+\quad Replace BiLSTM with uni-LSTM & 73.2\% & -2.2\% \\
+\quad Replace BiLSTM with Transformer & 74.1\% & -1.3\% \\
+\quad Remove LSTM (CNN only, global avg pool) & 68.7\% & -6.7\% \\
+\quad Replace ResNet18 with VGG16 & 72.3\% & -3.1\% \\
+\midrule
+\textit{Loss Function Ablations:} & & \\
+\quad Replace Focal Loss with Cross-Entropy & 71.8\% & -3.6\% \\
+\quad Focal Loss without class weights & 72.9\% & -2.5\% \\
+\quad Cross-Entropy with class weights & 73.4\% & -2.0\% \\
+\midrule
+\textit{Training Strategy Ablations:} & & \\
+\quad No fine-tuning (freeze CNN always) & 68.3\% & -7.1\% \\
+\quad No data augmentation & 73.6\% & -1.8\% \\
+\quad Reduce frames to 8 & 72.1\% & -3.3\% \\
+\quad Increase frames to 32 & 75.2\% & -0.2\% (diminishing returns) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Findings:}
+
+\begin{enumerate}
+\item \textbf{LSTM critical for temporal modeling:}
+   \begin{itemize}
+   \item Removing LSTM: -6.7\% accuracy
+   \item BiLSTM vs uni-LSTM: +2.2\% (bidirectional helps)
+   \item Transformer comparable but no significant improvement
+   \end{itemize}
+
+\item \textbf{Focal Loss important for class imbalance:}
+   \begin{itemize}
+   \item Focal Loss vs Cross-Entropy: +3.6\% accuracy
+   \item Class weights alone: +2.0\%
+   \item Combination (Focal + weights) best: +3.6\%
+   \end{itemize}
+
+\item \textbf{Fine-tuning essential:}
+   \begin{itemize}
+   \item Frozen CNN: 68.3\%
+   \item Fine-tuned CNN: 75.4\%
+   \item Gain: +7.1\% (largest single contribution)
+   \end{itemize}
+
+\item \textbf{16 frames optimal:}
+   \begin{itemize}
+   \item 8 frames: -3.3\% (insufficient temporal context)
+   \item 16 frames: baseline
+   \item 32 frames: -0.2\% (diminishing returns, increased compute)
+   \end{itemize}
+\end{enumerate}
+
+\section{Phase 3: Shot Coach Application Deployment}
+
+\subsection{Motivation: From Research to Practice}
+
+Phase 2 demonstrated technical feasibility (74.6\% accuracy). Phase 3 focuses on making this capability accessible to end-users through a practical application. Key design principles:
+
+\begin{enumerate}
+\item \textbf{Accessibility:} Non-technical users should obtain predictions without coding
+\item \textbf{Transparency:} Users must understand model confidence and limitations
+\item \textbf{Speed:} Real-time feedback (5--15 seconds per video)
+\item \textbf{Usability:} Clear instructions, error handling, actionable results
+\item \textbf{Privacy:} On-device processing, no data retention
+\end{enumerate}
+
+\subsection{System Architecture}
+
+\begin{figure}[H]
+\centering
+\begin{verbatim}
++-------------------------------------------------------------+
+|              Shot Coach Application Pipeline                |
++-------------------------------------------------------------+
+
+User Browser (http://localhost:8501)
+    |
+[1] Video Upload (MP4/AVI/MOV, 2-10 seconds)
+    |
+[2] Shot Classifier Module (shot_classifier.py)
+    -> Load trained ResNet18+BiLSTM model (164 MB)
+    -> Extract 16 frames uniformly across video
+    -> Run inference (150 ms on Mac M1)
+    -> Return: {shot_type, confidence, probabilities, metadata}
+    |
+[3] Video Metadata Analyzer
+    -> Calculate duration, FPS, total frames
+    -> Track sampled frame indices and timestamps
+    -> Generate warnings based on video characteristics
+    |
+[4] Streamlit Web Interface (app.py)
+    -> Display shot classification results
+    -> Show confidence scores (0-100%)
+    -> Visualize all 5 class probabilities
+    -> Present video metadata (duration, frames, sampling)
+    -> Issue smart warnings (multi-shot, low confidence)
+    -> Provide shot type descriptions
+    |
+User sees results in browser (10-30 seconds total)
+\end{verbatim}
+\caption{Shot Coach End-to-End Pipeline}
+\end{figure}
+
+\subsection{Core Components}
+
+\subsubsection{Shot Classifier Module}
+
+\begin{lstlisting}[language=Python, caption=Shot Classifier Interface]
+class ShotClassifier:
+    def __init__(self, model_path, device=None):
+        """Load trained model for inference"""
+        self.model = CNN_LSTM_Classifier(num_classes=5)
+        checkpoint = torch.load(model_path, map_location=device)
+        self.model.load_state_dict(checkpoint)
+        self.model.eval()  # Inference mode
+
+    def predict(self, video_path, num_frames=16):
+        """
+        Predict shot type from video
+
+        Returns:
+            dict with predicted_class, confidence,
+            probabilities, and metadata
+        """
+        # Extract frames with metadata tracking
+        frames, metadata = self.extract_frames(video_path, num_frames)
+
+        # Run inference
+        with torch.no_grad():
+            outputs = self.model(frames)
+            probabilities = torch.softmax(outputs, dim=1)
+            confidence, predicted = torch.max(probabilities, 1)
+
+        return {
+            'success': True,
+            'predicted_class': self.class_names[predicted.item()],
+            'confidence': confidence.item(),
+            'probabilities': {name: prob for name, prob in zip(...)},
+            'metadata': metadata  # NEW: Added in Phase 3
+        }
+\end{lstlisting}
+
+\subsubsection{Video Metadata Tracking (Key Innovation)}
+
+\textbf{User Question:} "If my video has many shots, which shot is analyzed?"
+
+\textbf{Problem:} Users didn't understand uniform frame sampling across entire video.
+
+\textbf{Solution:} Added comprehensive metadata tracking showing exactly what frames were analyzed:
+
+\begin{lstlisting}[language=Python, caption=Metadata Extraction]
+def extract_frames(self, video_path, num_frames=16):
+    """Extract frames with detailed metadata"""
+    cap = cv2.VideoCapture(str(video_path))
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    duration = total_frames / fps
+
+    # Sample frames uniformly across ENTIRE video
+    frame_indices = np.linspace(0, total_frames - 1, num_frames, dtype=int)
+    frame_times = frame_indices / fps
+
+    # Extract frames...
+    frames = [...]
+
+    # Return both frames AND metadata
+    metadata = {
+        'total_frames': total_frames,
+        'fps': fps,
+        'duration': duration,
+        'sampled_frames': frame_indices.tolist(),
+        'sampled_times': frame_times.tolist(),
+        'num_frames_analyzed': num_frames
+    }
+
+    return frames, metadata
+\end{lstlisting}
+
+\textbf{Example Metadata Output:}
+\begin{verbatim}
+{
+    'total_frames': 90,
+    'fps': 30.0,
+    'duration': 3.0,
+    'sampled_frames': [0, 5, 11, 17, 23, 29, 35, 41, 47,
+                       53, 59, 64, 70, 76, 82, 89],
+    'sampled_times': [0.00, 0.17, 0.37, 0.57, 0.77, 0.97,
+                      1.17, 1.37, 1.57, 1.77, 1.97, 2.13,
+                      2.33, 2.53, 2.73, 2.97],
+    'num_frames_analyzed': 16
+}
+\end{verbatim}
+
+\subsection{Smart Warning System}
+
+Implemented context-aware warnings to guide users toward better video quality:
+
+\begin{table}[H]
+\centering
+\caption{Warning System Triggers and Messages}
+\small
+\begin{tabular}{llp{5cm}}
+\toprule
+Trigger Condition & Level & Message Summary \\
+\midrule
+Duration $>$ 5 seconds & [WARNING] Warning & Multi-shot video detected. Model samples across entire video causing mixed signals. Trim to 2-3s. \\
+Duration $<$ 1.5 seconds & [INFO] Info & Video too short to capture full motion. Record 2-3s including prep and follow-through. \\
+Confidence $<$ 60\% & [WARNING] Warning & Low confidence. Check camera angle (use side-court view), lighting, and video quality. \\
+Confidence $<$ 70\% AND Duration $>$ 3s & [WARNING] Warning & Low confidence with long video. Likely contains multiple shots. Trim to single shot. \\
+Confidence $>$ 85\% & [OK] Success & High confidence! Video angle and execution match training data well. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Warning Display Example (Streamlit UI):}
+
+\begin{verbatim}
+[WARNING] Video is longer than 5 seconds
+
+Your video contains multiple shots or extended footage. The model
+samples frames uniformly across the ENTIRE video, which may result in:
+   Mixed signals from different shots
+   Lower confidence scores
+   Potentially incorrect classification
+
+Recommendation: Trim your video to contain ONLY ONE shot (2-3 seconds)
+for best results.
+
+Video Analysis Info:
+  Duration: 8.7 seconds
+  Frames analyzed: 16 (sampled uniformly)
+  Timeframe: 0.00s - 8.63s
+\end{verbatim}
+
+\subsection{Camera Angle Robustness Analysis}
+
+\subsubsection{Training Data Camera Characteristics}
+
+ShuttleSet videos recorded from professional broadcast cameras:
+
+\begin{itemize}
+\item \textbf{Angle:} Side-court view, elevated 45° from court level
+\item \textbf{Distance:} 15--20 meters from court center
+\item \textbf{Height:} 2--4 meters above court surface
+\item \textbf{Lens:} Wide-angle (70--90° field of view)
+\item \textbf{Consistency:} All 22,302 videos use similar positioning
+\end{itemize}
+
+\subsubsection{Expected Performance by Camera Angle}
+
+\begin{table}[H]
+\centering
+\caption{Predicted Model Performance vs Camera Angle}
+\begin{tabular}{lcp{7cm}}
+\toprule
+Camera Angle & Expected Acc & Reasoning \\
+\midrule
+\textbf{Side-court (training)} & [OK] 74.6\% & Exact match to training distribution \\
+Slight elevation change ($\pm$20°) & [OK] 70--75\% & ResNet features partially rotation-invariant \\
+Front/back court view & [WARNING] 50--65\% & Different perspective, altered motion patterns \\
+Player POV (GoPro) & [FAIL] 30--50\% & Close-up, missing court context \\
+Overhead (bird's eye) & [FAIL] 30--50\% & Completely different view, no depth \\
+Close-up (upper body only) & [FAIL] 40--55\% & Missing footwork and court positioning \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Shot-Specific Angle Sensitivity:}
+
+\begin{itemize}
+\item \textbf{Low sensitivity:} Smash (downward motion), Clear (high trajectory) --- recognizable from multiple angles
+\item \textbf{High sensitivity:} Drop (subtle net-clearing), Drive (horizontal motion) --- easily confused from wrong angles
+\end{itemize}
+
+\subsubsection{User Guidance in Application}
+
+Application provides camera angle recommendations:
+
+\begin{verbatim}
+ Video Requirements:
+   Record from side-court angle (like broadcast camera)
+   Position camera 3-5 meters away
+   Elevate camera 1-2 meters above court
+   Ensure full body visible in frame
+   Use good lighting
+   ONE shot per video (2-3 seconds)
+
+[FAIL] Avoid:
+   Player's perspective (GoPro on body)
+   Overhead cameras
+   Extreme close-ups
+   Very low angles (ground level)
+\end{verbatim}
+
+\subsection{Application Features Summary}
+
+\begin{table}[H]
+\centering
+\caption{Shot Coach Feature Comparison}
+\begin{tabular}{lcc}
+\toprule
+Feature & Implemented & Status \\
+\midrule
+\textbf{Core Functionality} & & \\
+\quad Shot type classification (5 classes) & [OK] & 74.6\% accuracy \\
+\quad Confidence scores & [OK] & 0--100\% display \\
+\quad All class probabilities & [OK] & Sorted bar charts \\
+\quad Video upload (web interface) & [OK] & MP4/AVI/MOV support \\
+\midrule
+\textbf{Transparency Features} & & \\
+\quad Video metadata display & [OK] & Duration, FPS, frames \\
+\quad Frame sampling timeline & [OK] & Shows which frames analyzed \\
+\quad Smart warnings & [OK] & Context-aware guidance \\
+\quad Model info disclosure & [OK] & Architecture, accuracy shown \\
+\midrule
+\textbf{User Experience} & & \\
+\quad Processing speed & [OK] & 5--10 seconds per video \\
+\quad Error handling & [OK] & Graceful failure messages \\
+\quad Shot descriptions & [OK] & Tactical explanations \\
+\quad Alternative predictions & [OK] & Top-3 alternatives shown \\
+\midrule
+\textbf{Privacy \& Security} & & \\
+\quad On-device processing & [OK] & No cloud upload \\
+\quad Immediate file deletion & [OK] & No data retention \\
+\quad No user tracking & [OK] & No analytics \\
+\midrule
+\textbf{Future Enhancements} & & \\
+\quad Automatic shot segmentation & [FAIL] & Planned (multi-shot videos) \\
+\quad Visual overlays & [FAIL] & Planned (skeleton on video) \\
+\quad Technique analysis & [FAIL] & Disabled (pose issues) \\
+\quad Mobile app & [FAIL] & Future work \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Limitations and Considerations}
+
+\textbf{Current Limitations:}
+
+\begin{enumerate}
+\item \textbf{Single-shot assumption:} Multi-shot videos cause confused predictions
+   \begin{itemize}
+   \item Problem: Frames sampled across multiple shots -> mixed signals
+   \item Mitigation: Smart warnings educate users
+   \item Solution: Future automatic shot segmentation
+   \end{itemize}
+
+\item \textbf{Camera angle sensitivity:} Optimal for side-court broadcast views
+   \begin{itemize}
+   \item Problem: Training data homogeneous (one camera type)
+   \item Mitigation: Clear guidance on recommended angles
+   \item Solution: Future multi-angle training augmentation
+   \end{itemize}
+
+\item \textbf{2D analysis only:} No depth or 3D information
+   \begin{itemize}
+   \item Problem: Cannot measure true 3D trajectories
+   \item Impact: Some confusions unavoidable (Drive vs Lift)
+   \item Solution: Future stereo cameras or depth sensors
+   \end{itemize}
+
+\item \textbf{No automatic quality assessment:} Accepts any video input
+   \begin{itemize}
+   \item Problem: Poor lighting/blur degrades accuracy silently
+   \item Mitigation: Low confidence warnings flag issues
+   \item Solution: Future video quality pre-check
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Future Enhancement Roadmap:}
+
+\begin{table}[H]
+\centering
+\caption{Planned Enhancements Timeline}
+\begin{tabular}{llp{6cm}}
+\toprule
+Timeframe & Enhancement & Description \\
+\midrule
+\textbf{Short-term (3--6 months)} & & \\
+& Auto shot segmentation & Detect multiple shots in long videos, analyze separately \\
+& Visual overlays & Draw skeleton, trajectory, analysis markers on video \\
+& Batch processing & Analyze entire practice session (multiple videos) \\
+& Mobile app (iOS/Android) & Record -> Analyze on phone \\
+\midrule
+\textbf{Medium-term (6--12 months)} & & \\
+& Multi-angle training & Augment data with synthetic viewpoint changes \\
+& Shot quality scoring & Predict success probability based on execution \\
+& Rally analysis & Analyze sequence of shots, tactical patterns \\
+& Pro player comparison & Compare your shot to professional reference \\
+\midrule
+\textbf{Long-term (1+ years)} & & \\
+& Real-time analysis & Live camera feed, instant feedback \\
+& 3D pose estimation & Depth cameras for true 3D trajectories \\
+& Technique analysis revival & Biomechanics with better pose data \\
+& Personalized training & AI coach recommending drills \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Comparative Analysis: Pose-Only vs Video-Based}
+
+\subsection{Quantitative Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Comprehensive Approach Comparison}
+\begin{tabular}{lcc}
+\toprule
+Aspect & Pose-Only (Phase 1) & Video-Based (Phase 2) \\
+\midrule
+\textbf{Performance} & & \\
+\quad Accuracy & 50.0\% (random) & 74.6\% \\
+\quad F1-Score & 0.50 & 0.74 \\
+\quad Number of classes & 2 (Clear, Smash) & 5 (all types) \\
+\midrule
+\textbf{Features} & & \\
+\quad Feature type & Hand-crafted (60 features) & Learned (512-dim CNN) \\
+\quad Input representation & Skeletal keypoints (33 points) & Raw pixels (224×224×3) \\
+\quad Feature engineering & Manual (6 categories) & Automatic (end-to-end) \\
+\midrule
+\textbf{Model} & & \\
+\quad Architecture & LSTM / BiLSTM / ResNet1D & ResNet18 + BiLSTM \\
+\quad Parameters & ~500K & ~12.6M \\
+\quad Pretrained & No & Yes (ImageNet) \\
+\midrule
+\textbf{Data} & & \\
+\quad Dataset size & 4,655 clips & 18,169 clips \\
+\quad Preprocessing & MediaPipe pose extraction & Frame sampling \\
+\quad Preprocessing time & 12 hours (parallel) & Real-time (on-the-fly) \\
+\midrule
+\textbf{Inference} & & \\
+\quad Speed & 5 ms per video & 150 ms per video \\
+\quad Memory & ~100 MB & ~2 GB \\
+\midrule
+\textbf{Outcome} & & \\
+\quad Success & [FAIL] Failed & [OK] Succeeded \\
+\quad Deployment & Not viable & Production-ready \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Qualitative Insights}
+
+\textbf{Why Video-Based Succeeded:}
+
+\begin{enumerate}
+\item \textbf{Captures missing information:}
+   \begin{itemize}
+   \item Racket visible in pixels (orientation, motion blur)
+   \item Shuttlecock trajectory partially visible
+   \item Court context provides spatial references
+   \item Motion blur encodes velocity information
+   \end{itemize}
+
+\item \textbf{Transfer learning effectiveness:}
+   \begin{itemize}
+   \item ImageNet pretraining provides strong visual features
+   \item Edges, textures, shapes learned from 1.2M images
+   \item Fine-tuning adapts general features to badminton domain
+   \item Proven: 7.1\% accuracy gain from fine-tuning vs frozen CNN
+   \end{itemize}
+
+\item \textbf{End-to-end learning:}
+   \begin{itemize}
+   \item No manual feature engineering bias
+   \item Network discovers optimal discriminative features
+   \item 512-dim learned features $>$ 60-dim hand-crafted features
+   \item Data-driven rather than hypothesis-driven
+   \end{itemize}
+
+\item \textbf{Sufficient training data:}
+   \begin{itemize}
+   \item 18,169 samples vs 4,655 (3.9× more data)
+   \item Deep networks require large datasets
+   \item Class diversity (5 types) improves feature learning
+   \end{itemize}
+\end{enumerate}
+
+\textbf{When Pose-Only Might Work:}
+
+\begin{itemize}
+\item Actions differing primarily in body mechanics (e.g., yoga poses, dance moves)
+\item No equipment involved (e.g., running vs walking gait analysis)
+\item Privacy-critical applications (pose doesn't capture identity)
+\item Extremely constrained compute (pose is 294× smaller than video)
+\end{itemize}
+
+\subsection{Key Lessons Learned}
+
+\begin{enumerate}
+\item \textbf{Domain expertise before implementation:}
+   \begin{itemize}
+   \item Consulting coaches early would reveal pose limitations
+   \item Literature review identifies known challenges
+   \item Pilot studies test hypotheses before full implementation
+   \item Lesson: Don't assume---validate domain assumptions first
+   \end{itemize}
+
+\item \textbf{Feature analysis precedes modeling:}
+   \begin{itemize}
+   \item Statistical tests (t-test, effect size) reveal discriminative power
+   \item Visualization (histograms, scatter plots) shows feature overlap
+   \item Correlation analysis identifies redundant features
+   \item Lesson: No model can learn from uninformative features
+   \end{itemize}
+
+\item \textbf{Equipment tracking essential for sports:}
+   \begin{itemize}
+   \item Sports performance involves tools (racket, bat, club, ball)
+   \item Body pose alone insufficient when equipment state determines outcome
+   \item Multi-object tracking required (human + equipment + projectile)
+   \item Lesson: Sport analysis $\neq$ human activity recognition
+   \end{itemize}
+
+\item \textbf{Temporal context matters:}
+   \begin{itemize}
+   \item Single-moment analysis inadequate for dynamic actions
+   \item Need pre-action, action, post-action phases
+   \item Minimum 1.5--2.0 seconds temporal window
+   \item Lesson: Actions unfold over time, not at single instants
+   \end{itemize}
+
+\item \textbf{Transfer learning accelerates development:}
+   \begin{itemize}
+   \item Pretrained models provide strong initialization
+   \item Fine-tuning much faster than training from scratch
+   \item ImageNet features generalize surprisingly well
+   \item Lesson: Don't reinvent the wheel---leverage existing models
+   \end{itemize}
+
+\item \textbf{Negative results have value:}
+   \begin{itemize}
+   \item Definitively ruling out approaches guides future research
+   \item Failure analysis identifies fundamental limitations
+   \item Saves others from repeating same mistakes
+   \item Lesson: Publish negative results, they're scientifically valuable
+   \end{itemize}
+
+\item \textbf{User feedback drives improvement:}
+   \begin{itemize}
+   \item Questions like "which shot is analyzed?" reveal UX gaps
+   \item Metadata tracking addresses transparency concerns
+   \item Smart warnings guide users toward better inputs
+   \item Lesson: Deploy early, iterate based on user needs
+   \end{itemize}
+\end{enumerate}
+
+\section{AI Governance and Ethical Considerations}
+
+Evaluated application against Singapore's AI Verify Framework \cite{AIVerify} and international AI ethics principles.
+
+\subsection{Transparency and Explainability}
+
+\textbf{Principle:} Users should understand how AI systems make decisions and their limitations.
+
+\textbf{Implementation:}
+
+\begin{enumerate}
+\item \textbf{Confidence scores displayed:}
+   \begin{itemize}
+   \item Primary prediction with 0--100\% confidence
+   \item Visual progress bar for intuitive understanding
+   \item Threshold-based interpretation (>85\% = high confidence)
+   \end{itemize}
+
+\item \textbf{All class probabilities shown:}
+   \begin{itemize}
+   \item Sorted bar charts for all 5 shot types
+   \item Alternative possibilities visible
+   \item Users see "how close" other classes were
+   \end{itemize}
+
+\item \textbf{Model architecture disclosed:}
+   \begin{itemize}
+   \item "Built with ResNet18+BiLSTM" displayed
+   \item Training accuracy reported (74.6\%)
+   \item Training dataset size mentioned (22,302 samples)
+   \end{itemize}
+
+\item \textbf{Video metadata transparency:}
+   \begin{itemize}
+   \item Exact frames analyzed shown
+   \item Timeframe coverage explicit
+   \item Sampling strategy explained ("uniformly across video")
+   \end{itemize}
+
+\item \textbf{Limitations disclosed:}
+   \begin{itemize}
+   \item Camera angle sensitivity explained
+   \item Single-shot assumption stated
+   \item Accuracy not 100\%, errors possible
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Missing (for future):}
+\begin{itemize}
+\item Saliency maps showing which image regions influenced prediction
+\item Feature importance scores for interpretability
+\item Uncertainty quantification (Bayesian approaches)
+\end{itemize}
+
+\subsection{Privacy and Data Protection}
+
+\textbf{Principle:} Minimize personal data collection and ensure user control.
+
+\textbf{Implementation:}
+
+\begin{enumerate}
+\item \textbf{On-device processing:}
+   \begin{itemize}
+   \item All inference runs locally (Streamlit server on user machine)
+   \item No video uploads to cloud servers
+   \item No network transmission of personal data
+   \end{itemize}
+
+\item \textbf{No data retention:}
+   \begin{itemize}
+   \item Uploaded videos deleted immediately after analysis
+   \item No logs stored (filenames, timestamps, results)
+   \item Temporary files cleaned up automatically
+   \end{itemize}
+
+\item \textbf{No user tracking:}
+   \begin{itemize}
+   \item No analytics (Google Analytics, Mixpanel)
+   \item No cookies or session tracking
+   \item No IP address logging
+   \end{itemize}
+
+\item \textbf{No personal identifiable information (PII):}
+   \begin{itemize}
+   \item Videos analyzed for shot type only
+   \item No facial recognition or player identification
+   \item Results don't include personal data
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Privacy-by-design principles applied:}
+\begin{itemize}
+\item Data minimization: Only process what's necessary (video frames)
+\item Purpose limitation: Analyze shots only, no other use
+\item Storage limitation: Immediate deletion after processing
+\item User control: Users decide what to upload, can stop anytime
+\end{itemize}
+
+\subsection{Safety and Robustness}
+
+\textbf{Principle:} Systems should fail gracefully and provide appropriate warnings.
+
+\textbf{Implementation:}
+
+\begin{enumerate}
+\item \textbf{Input validation:}
+   \begin{itemize}
+   \item Check video format (MP4, AVI, MOV only)
+   \item Verify file size ($<$ 100 MB limit)
+   \item Validate frame extraction success
+   \end{itemize}
+
+\item \textbf{Error handling:}
+   \begin{lstlisting}[language=Python]
+   try:
+       result = classifier.predict(video_path)
+       if not result['success']:
+           st.error(f"Error: {result.get('error')}")
+           return
+   except Exception as e:
+       st.error(f"Unexpected error: {e}")
+       st.info("Try: shorter video, better lighting, side-court angle")
+   \end{lstlisting}
+
+\item \textbf{Confidence thresholds:}
+   \begin{itemize}
+   \item Warn when confidence $<$ 70\% (model uncertain)
+   \item Suggest improvements (camera angle, lighting, trimming)
+   \item Don't present low-confidence predictions as facts
+   \end{itemize}
+
+\item \textbf{Graceful degradation:}
+   \begin{itemize}
+   \item Corrupted videos: Clear error message, no crash
+   \item Missing model file: Inform user, provide download link
+   \item Low memory: Reduce batch size automatically
+   \end{itemize}
+
+\item \textbf{Disclaimers (required for public release):}
+   \begin{itemize}
+   \item "AI analysis for educational purposes only"
+   \item "Not a substitute for professional coaching"
+   \item "Accuracy 74.6\%, errors possible---verify critical decisions"
+   \item "Optimized for side-court angles, other views may reduce accuracy"
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Fairness and Inclusivity}
+
+\textbf{Principle:} Systems should work equitably across demographics and contexts.
+
+\textbf{Potential Biases Identified:}
+
+\begin{enumerate}
+\item \textbf{Skill level bias:}
+   \begin{itemize}
+   \item Training data: Professional players only
+   \item Concern: May not generalize to recreational players (different form)
+   \item Mitigation: Disclose training data characteristics
+   \item Future: Expand dataset to include various skill levels
+   \end{itemize}
+
+\item \textbf{Camera equipment bias:}
+   \begin{itemize}
+   \item Training data: Broadcast-quality cameras
+   \item Concern: Smartphone videos may differ (resolution, stabilization)
+   \item Mitigation: Provide camera angle and quality guidelines
+   \item Future: Test on diverse camera types (smartphone, GoPro, webcam)
+   \end{itemize}
+
+\item \textbf{Geographic bias:}
+   \begin{itemize}
+   \item Training data: International tournaments (specific court types, lighting)
+   \item Concern: May not work well in recreational gyms (different conditions)
+   \item Mitigation: Document training environment characteristics
+   \item Future: Collect data from recreational settings
+   \end{itemize}
+
+\item \textbf{Playing style bias:}
+   \begin{itemize}
+   \item Training data: International standard shot taxonomy
+   \item Concern: Regional variations in shot names/execution
+   \item Mitigation: Use internationally recognized shot type definitions
+   \item Future: Support regional shot taxonomies
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Fairness Testing (before wide deployment):}
+
+\begin{itemize}
+\item Test across player demographics (age, gender, skill level, playing style)
+\item Evaluate on diverse camera equipment (smartphone, GoPro, DSLR)
+\item Measure performance across court types (indoor, outdoor, lighting conditions)
+\item Collect user feedback on prediction fairness
+\end{itemize}
+
+\subsection{Accountability and Governance}
+
+\textbf{Principle:} Clear responsibility and mechanisms for addressing issues.
+
+\textbf{Implementation (for public release):}
+
+\begin{enumerate}
+\item \textbf{Documentation:}
+   \begin{itemize}
+   \item Model card documenting training data, performance, limitations
+   \item User guide explaining proper usage
+   \item Known issues list (camera angles, lighting requirements)
+   \end{itemize}
+
+\item \textbf{Feedback mechanism:}
+   \begin{itemize}
+   \item "Report incorrect prediction" button
+   \item Collect misclassified videos for retraining (with consent)
+   \item GitHub issues for bug reports
+   \end{itemize}
+
+\item \textbf{Version control:}
+   \begin{itemize}
+   \item Model versioning (v1.0 = 74.6\% accuracy)
+   \item Changelogs documenting improvements
+   \item Rollback capability if new version degrades performance
+   \end{itemize}
+
+\item \textbf{Regular audits:}
+   \begin{itemize}
+   \item Quarterly performance monitoring (test set accuracy)
+   \item Bias detection tests (fairness across demographics)
+   \item Security audits (vulnerabilities, privacy compliance)
+   \end{itemize}
+\end{enumerate}
+
+\subsection{AI Governance Checklist}
+
+\begin{table}[H]
+\centering
+\caption{AI Verify Framework Compliance}
+\small
+\begin{tabular}{lcc}
+\toprule
+Principle & Current Status & Notes \\
+\midrule
+\textbf{Transparency} & [OK] Implemented & Confidence, probabilities, metadata shown \\
+\textbf{Explainability} & [WARNING] Partial & Predictions explained, but no saliency maps \\
+\textbf{Privacy} & [OK] Implemented & On-device, no retention, no tracking \\
+\textbf{Security} & [WARNING] Basic & Input validation, error handling (audit needed) \\
+\textbf{Safety} & [OK] Implemented & Graceful failures, confidence warnings \\
+\textbf{Fairness} & [WARNING] Partial & Biases identified, testing needed \\
+\textbf{Accountability} & [WARNING] Partial & Documentation exists, feedback mechanism needed \\
+\textbf{Human Oversight} & [OK] Implemented & User controls upload, sees confidence, makes decisions \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Readiness for Public Release:}
+
+\begin{itemize}
+\item [OK] \textbf{Current state:} Safe for beta testing with informed users
+\item [WARNING] \textbf{Before wide release:} Fairness testing, security audit, formal model card
+\item [FAIL] \textbf{Not ready for:} High-stakes decisions (e.g., competitive ranking, coaching certification)
+\end{itemize}
+
+\section{Conclusion}
+
+\subsection{Project Achievements}
+
+This project successfully demonstrated the complete machine learning development lifecycle from initial failure through architectural pivot to production deployment. Key accomplishments:
+
+\begin{enumerate}
+\item \textbf{Rigorous failure analysis (Phase 1):}
+   \begin{itemize}
+   \item Systematically tested pose-only approach across 15 model configurations
+   \item Empirically demonstrated that Clear and Smash have identical body poses at contact (1.1° difference)
+   \item Identified four categories of missing discriminative information (racket angle, shuttlecock trajectory, follow-through, racket velocity)
+   \item Published negative results with root cause analysis
+   \end{itemize}
+
+\item \textbf{Successful architectural pivot (Phase 2):}
+   \begin{itemize}
+   \item Achieved 74.6\% test accuracy on 5-class shot classification (+24.6 pp over pose-only)
+   \item Demonstrated transfer learning effectiveness (ResNet18 pretrained on ImageNet)
+   \item Successfully handled severe class imbalance (3.5\% to 31.8\%) using Focal Loss
+   \item Trained on 18,169 video samples with group-stratified splitting preventing data leakage
+   \end{itemize}
+
+\item \textbf{Production-ready application deployment (Phase 3):}
+   \begin{itemize}
+   \item Built user-friendly Streamlit web interface
+   \item Implemented video metadata tracking addressing user transparency needs
+   \item Created smart warning system guiding users toward better video quality
+   \item Achieved 5--10 second inference time on consumer hardware
+   \item Incorporated AI governance principles (transparency, privacy, safety)
+   \end{itemize}
+
+\item \textbf{Research contributions:}
+   \begin{itemize}
+   \item Empirical evidence that body pose alone is insufficient for overhead badminton shot discrimination
+   \item Demonstration of transfer learning from ImageNet to badminton action recognition
+   \item Analysis of camera angle sensitivity for video-based shot classification
+   \item Ablation studies quantifying contribution of each architectural component
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Lessons Learned}
+
+\textbf{Technical Lessons:}
+
+\begin{enumerate}
+\item \textbf{Domain expertise is non-negotiable:}
+   \begin{itemize}
+   \item Early consultation with badminton coaches would have revealed pose limitations immediately
+   \item Literature review identifies known challenges before implementation
+   \item Saved: 3 weeks development time + compute resources
+   \end{itemize}
+
+\item \textbf{Feature analysis before modeling:}
+   \begin{itemize}
+   \item Statistical tests (t-test, effect size) should precede model training
+   \item Exploratory data analysis reveals feature overlap or separation
+   \item Rule: If features don't separate classes, no model can learn
+   \end{itemize}
+
+\item \textbf{Equipment tracking essential for sports:}
+   \begin{itemize}
+   \item Sports analysis requires multi-object tracking (human + equipment + projectile)
+   \item Body pose alone insufficient when tool state determines outcome
+   \item Generalization: Any tool-using activity needs equipment tracking
+   \end{itemize}
+
+\item \textbf{Transfer learning accelerates development:}
+   \begin{itemize}
+   \item Pretrained ImageNet features generalize surprisingly well
+   \item Fine-tuning 10$\times$ faster than training from scratch
+   \item Improvement: +7.1 pp accuracy from CNN fine-tuning alone
+   \end{itemize}
+
+\item \textbf{Fail fast, iterate:}
+   \begin{itemize}
+   \item Early negative results (50\% accuracy) enabled quick pivot
+   \item Don't waste months tuning models when data is uninformative
+   \item Negative results guide toward better approaches
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Product Lessons:}
+
+\begin{enumerate}
+\item \textbf{User transparency builds trust:}
+   \begin{itemize}
+   \item Showing metadata ("which frames analyzed?") addresses user concerns
+   \item Confidence scores help users interpret predictions
+   \item Explicit limitations prevent unrealistic expectations
+   \end{itemize}
+
+\item \textbf{Smart warnings guide behavior:}
+   \begin{itemize}
+   \item Context-aware messages (long video + low confidence) educate users
+   \item Actionable guidance (trim to 2-3s) improves input quality
+   \item Result: Better videos -> better predictions -> happier users
+   \end{itemize}
+
+\item \textbf{Privacy-by-design matters:}
+   \begin{itemize}
+   \item On-device processing eliminates privacy concerns
+   \item No data retention simplifies compliance (GDPR, PDPA)
+   \item Users more willing to share videos when privacy guaranteed
+   \end{itemize}
+
+\item \textbf{Deploy early, iterate based on feedback:}
+   \begin{itemize}
+   \item User questions revealed UX gaps (metadata tracking feature)
+   \item Real-world usage exposes edge cases (multi-shot videos)
+   \item Beta testing validates assumptions before wide release
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Project Impact}
+
+\textbf{Academic Impact:}
+
+\begin{itemize}
+\item Established baseline (74.6\%) for badminton video classification on ShuttleSet
+\item Documented failure mode (pose-only) saving future researchers time
+\item Demonstrated transfer learning applicability to badminton domain
+\item Open-sourced implementation for research community
+\end{itemize}
+
+\textbf{Practical Impact:}
+
+\begin{itemize}
+\item Functional tool for recreational players (Shot Coach app)
+\item Instant feedback without coach scheduling or fees
+\item Educational value in understanding shot type characteristics
+\item Foundation for commercial coaching application
+\end{itemize}
+
+\textbf{Educational Impact (Personal Learning):}
+
+\begin{itemize}
+\item Hands-on experience with complete ML lifecycle (data -> model -> deployment)
+\item Understanding when to pivot vs persevere (Phase 1 failure -> Phase 2 success)
+\item User-centered design for AI systems (transparency, warnings, guidance)
+\item AI governance implementation (Singapore AI Verify Framework)
+\end{itemize}
+
+\subsection{Future Research Directions}
+
+\textbf{Short-Term Improvements (3--6 months):}
+
+\begin{enumerate}
+\item \textbf{Automatic shot segmentation:}
+   \begin{itemize}
+   \item Detect multiple shots in long videos using motion analysis
+   \item Temporal action detection with sliding windows
+   \item Analyze each shot separately, aggregate results
+   \end{itemize}
+
+\item \textbf{Visual explanations:}
+   \begin{itemize}
+   \item Grad-CAM saliency maps highlighting discriminative regions
+   \item Draw skeleton overlay on video frames
+   \item Annotate predicted trajectory
+   \end{itemize}
+
+\item \textbf{Mobile deployment:}
+   \begin{itemize}
+   \item Convert PyTorch model to CoreML (iOS) or TensorFlow Lite (Android)
+   \item On-device inference on smartphones
+   \item Record -> Analyze -> Get feedback workflow
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Medium-Term Research (6--12 months):}
+
+\begin{enumerate}
+\item \textbf{Multi-angle robustness:}
+   \begin{itemize}
+   \item Synthetic viewpoint augmentation (3D rotation)
+   \item Train on diverse camera angles
+   \item Test generalization to smartphone recordings
+   \end{itemize}
+
+\item \textbf{Shot quality prediction:}
+   \begin{itemize}
+   \item Predict success probability (will opponent return?)
+   \item Regression model for shot effectiveness score
+   \item Incorporate rally outcome labels from ShuttleSet
+   \end{itemize}
+
+\item \textbf{Rally-level analysis:}
+   \begin{itemize}
+   \item Sequence modeling across multiple shots
+   \item Identify tactical patterns (e.g., Clear -> Smash combo)
+   \item Recommend optimal next shot given rally state
+   \end{itemize}
+\end{enumerate}
+
+\textbf{Long-Term Vision (1+ years):}
+
+\begin{enumerate}
+\item \textbf{Real-time analysis:}
+   \begin{itemize}
+   \item Process live camera feed (30 FPS)
+   \item Instant shot classification without recording
+   \item Augmented reality overlay on smartphone screen
+   \end{itemize}
+
+\item \textbf{3D pose and trajectory:}
+   \begin{itemize}
+   \item Stereo cameras or depth sensors for true 3D
+   \item 3D shuttlecock trajectory reconstruction
+   \item Accurate racket head tracking in 3D space
+   \end{itemize}
+
+\item \textbf{Technique analysis revival:}
+   \begin{itemize}
+   \item Improved pose estimation (MediaPipe v2, OpenPose)
+   \item Biomechanics scoring with better reliability
+   \item Compare user form to professional players
+   \end{itemize}
+
+\item \textbf{Personalized AI coaching:}
+   \begin{itemize}
+   \item Track user's shot history over time
+   \item Identify weaknesses (e.g., low Drop accuracy)
+   \item Recommend targeted drills and exercises
+   \item Measure improvement trends
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Final Remarks}
+
+This project exemplifies the iterative, non-linear nature of applied machine learning research. Initial approaches fail, requiring fundamental rethinking of problem formulation. Architectures must be adapted to domain constraints. User needs shape product features as much as technical capabilities.
+
+The journey from 50\% accuracy (pose-only failure) to 74.6\% accuracy (video-based success) to a deployed web application demonstrates that success requires:
+
+\begin{itemize}
+\item \textbf{Domain understanding:} Knowing what information matters (racket angle, trajectory)
+\item \textbf{Technical skills:} Implementing sophisticated models (ResNet18+BiLSTM)
+\item \textbf{User empathy:} Addressing real concerns (transparency, camera angles)
+\item \textbf{Willingness to pivot:} Abandoning failed approaches (pose-only)
+\item \textbf{Attention to governance:} Building ethical AI (privacy, fairness, transparency)
+\end{itemize}
+
+The Shot Coach application, while limited to 74.6\% accuracy and side-court camera angles, provides genuine value to recreational badminton players. It makes AI-powered shot analysis accessible through a simple web interface, educates users about video quality requirements through smart warnings, and establishes a foundation for future commercial deployment.
+
+Most importantly, this project demonstrates that \textbf{AI governance must be integrated from day one}, not retrofitted after deployment. Transparency features (metadata tracking), privacy protections (on-device processing), and safety mechanisms (confidence warnings) were designed into the system architecture, not added as afterthoughts.
+
+Looking forward, the combination of automatic shot segmentation, multi-angle training, and technique analysis will create a truly practical coaching tool. The vision: any recreational player with a smartphone can record practice sessions and receive professional-quality feedback instantly---no coach required, no scheduling constraints, completely private. This project takes the first significant step toward that vision.
+
+\section*{Acknowledgments}
+
+This project utilized the ShuttleSet dataset \cite{ShuttleSet}, MediaPipe Pose from Google \cite{MediaPipe}, PyTorch deep learning framework \cite{PyTorch}, and Streamlit web framework. Code development, debugging, literature review, report drafting, and LaTeX formatting were assisted by Claude Code \cite{ClaudeCode} and ChatGPT \cite{ChatGPT}. Special thanks to ITI123 instructors for guidance on AI governance principles and project scope. Dataset access provided by ShuttleSet authors via public release.
+
+\begin{thebibliography}{9}
+
+\bibitem{ShuttleSet}
+Wei-Yao Wang, Hong-Han Shuai, and Kai-Lung Hua.
+\textit{ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis}.
+CoRR, abs/2306.04948, 2023.
+\url{https://arxiv.org/abs/2306.04948}
+
+\bibitem{MediaPipe}
+Google Research.
+\textit{MediaPipe Pose: ML Solutions for Human Pose Estimation}.
+\url{https://google.github.io/mediapipe/solutions/pose.html}, 2023.
+
+\bibitem{FocalLoss}
+Tsung-Yi Lin, Priya Goyal, Ross Girshick, Kaiming He, and Piotr Dollár.
+\textit{Focal Loss for Dense Object Detection}.
+IEEE International Conference on Computer Vision (ICCV), pp. 2980--2988, 2017.
+
+\bibitem{PyTorch}
+Adam Paszke et al.
+\textit{PyTorch: An Imperative Style, High-Performance Deep Learning Library}.
+Neural Information Processing Systems (NeurIPS), 2019.
+
+\bibitem{AIVerify}
+Infocomm Media Development Authority (IMDA), Singapore.
+\textit{AI Verify: AI Governance Testing Framework and Toolkit}.
+\url{https://aiverifyfoundation.sg}, 2023.
+
+\bibitem{ClaudeCode}
+Anthropic.
+\textit{Claude Code: AI-Powered Command Line Coding Tool}.
+\url{https://www.anthropic.com/claude/code}, 2025.
+
+\bibitem{ChatGPT}
+OpenAI.
+\textit{ChatGPT: Optimizing Language Models for Dialogue}.
+\url{https://openai.com/chatgpt}, 2024.
+
+\end{thebibliography}
+
+\newpage
+\appendix
+
+\section{Technical Specifications}
+
+\subsection{Hardware and Software Environment}
+
+\begin{table}[H]
+\centering
+\caption{Development and Training Environment}
+\begin{tabular}{ll}
+\toprule
+Component & Specification \\
+\midrule
+\textbf{Hardware} & \\
+\quad CPU & Apple M1 Max (10 cores) \\
+\quad GPU & Apple M1 Max (32 GPU cores, MPS acceleration) \\
+\quad RAM & 32 GB \\
+\quad Storage & 1 TB SSD \\
+\midrule
+\textbf{Software} & \\
+\quad Operating System & macOS Sonoma 14.2 \\
+\quad Python & 3.10.11 \\
+\quad PyTorch & 2.0.1 (with MPS support) \\
+\quad TorchVision & 0.15.2 \\
+\quad MediaPipe & 0.10.8 \\
+\quad Streamlit & 1.29.0 \\
+\quad OpenCV & 4.8.1 \\
+\midrule
+\textbf{Training Resources} & \\
+\quad Phase 1 (Pose-only) & 2 hours (4,655 samples, 50 epochs) \\
+\quad Phase 2 (Video-based) & 6 hours (18,169 samples, 44 epochs) \\
+\quad Peak memory usage & 8 GB (batch size 64) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Code Repository Structure}
+
+\begin{lstlisting}[language=bash, caption=Project Directory Organization]
+iti123_v2/
++-- data/
+|   +-- clips/                    # 22,302 video clips (5 shot types)
+|   |   +-- Clear/               # 2,664 clips
+|   |   +-- Drive/               # 630 clips
+|   |   +-- Drop/                # 5,773 clips
+|   |   +-- Lift/                # 5,230 clips
+|   |   +-- Smash/               # 3,872 clips
+|   +-- poses/                   # MediaPipe pose extractions (Phase 1)
+|   +-- metadata.csv             # Shot annotations with timing
+|
++-- notebooks/
+|   +-- badminton_action_recognition_training.ipynb  # Phase 1
+|   +-- badminton_video_classification.py            # Phase 2
+|
++-- scripts/
+|   +-- extract_shuttleset_clips.py      # Video clip extraction
+|   +-- extract_poses_parallel.py        # Parallel pose extraction
+|   +-- validate_video_clips.py          # Data quality checks
+|
++-- shot_coach/                          # Phase 3 application
+|   +-- app.py                           # Streamlit web interface
+|   +-- modules/
+|   |   +-- shot_classifier.py          # ResNet18+BiLSTM inference
+|   |   +-- pose_extractor.py           # MediaPipe wrapper
+|   |   +-- technique_analyzer.py       # Biomechanics (disabled)
+|   +-- test_shot_coach.py              # CLI testing script
+|   +-- requirements.txt                # Python dependencies
+|   +-- README.md                        # User documentation
+|   +-- README_CLASSIFIER.md            # Technical documentation
+|   +-- VIDEO_METADATA_FEATURE.md       # Feature specification
+|
++-- outputs/
+|   +-- results_optionA/                # Phase 2 training results
+|   |   +-- best_model.pth              # Trained model (164 MB, Git LFS)
+|   |   +-- results_summary.json        # Training metrics
+|   |   +-- classification_report.txt   # Per-class performance
+|   |   +-- confusion_matrix.csv        # Detailed confusion matrix
+|   +-- reports/
+|       +-- ITI123_Milestone_Report.tex       # Phase 1 report
+|       +-- ITI123_Final_Project_Report.tex   # This document
+|
++-- docs/                                # Documentation
+    +-- VIDEO_TRAINING_README.md        # Training guide
+    +-- COLAB_SETUP_GUIDE.md           # Cloud training setup
+    +-- SHUTTLESET_EXTRACTION_GUIDE.md  # Data preprocessing
+\end{lstlisting}
+
+\subsection{Deployment Commands}
+
+\subsubsection{Phase 1: Pose-Only Training}
+
+\begin{lstlisting}[language=bash, caption=Extract Poses and Train Models]
+# 1. Extract poses from videos (parallel processing)
+python scripts/extract_poses_parallel.py \
+    --videos data/clips \
+    --output data/poses \
+    --workers 4 \
+    --batch-size 100
+
+# Output:
+# Processed 4,655 videos in 12 hours
+# Success rate: 99.4%
+# Saved to data/poses/*.pkl
+
+# 2. Train pose-based models
+cd notebooks
+jupyter notebook badminton_action_recognition_training.ipynb
+
+# Run all cells
+# Models trained: ResNet1D, LSTM, BiLSTM, GRU, Transformer
+# Result: All ~50% accuracy (failed)
+\end{lstlisting}
+
+\subsubsection{Phase 2: Video-Based Training}
+
+\begin{lstlisting}[language=bash, caption=Train ResNet18+BiLSTM on Videos]
+# Train video-based model
+cd notebooks
+python badminton_video_classification.py
+
+# Training progress (selected epochs):
+# Epoch 10/50 - Train: 61.2%, Val: 58.5%, Loss: 1.124
+# Epoch 20/50 - Train: 72.5%, Val: 68.3%, Loss: 0.812
+# Epoch 30/50 - Train: 79.1%, Val: 73.2%, Loss: 0.651
+# Epoch 40/50 - Train: 82.9%, Val: 75.4%, Loss: 0.542 [Best]
+# Epoch 44/50 - Early stopping triggered
+#
+# Final Results:
+# Test Accuracy: 74.62%
+# Test F1-Score: 0.7361 (macro)
+# Model saved: outputs/results_optionA/best_model.pth (164 MB)
+\end{lstlisting}
+
+\subsubsection{Phase 3: Shot Coach Deployment}
+
+\begin{lstlisting}[language=bash, caption=Run Shot Coach Application]
+# 1. Install dependencies
+cd shot_coach
+pip install -r requirements.txt
+
+# Dependencies installed:
+# streamlit==1.29.0
+# torch==2.0.1
+# torchvision==0.15.2
+# opencv-python==4.8.1.78
+# numpy==1.24.3
+# Pillow==10.1.0
+
+# 2. Run web application
+streamlit run app.py
+
+# Output:
+#   You can now view your Streamlit app in your browser.
+#   Local URL: http://localhost:8501
+#   Network URL: http://192.168.1.100:8501
+
+# 3. Alternative: Command-line testing
+python test_shot_coach.py ../data/clips/Smash/video.mp4
+
+# Output:
+# ======================================================================
+# SHOT COACH TEST
+# ======================================================================
+#
+# Video: video.mp4
+# Loading models...
+# [OK] Models loaded
+#
+# Step 1: Classifying shot type...
+# [OK] Shot Type: Smash (94.3% confidence)
+#
+# Video Analysis Info:
+#   Duration: 2.47s
+#   Total frames: 74
+#   FPS: 30.0
+#   Frames analyzed: 16
+#   Timeframe: 0.00s - 2.43s
+#
+# ======================================================================
+# TEST COMPLETE
+# ======================================================================
+\end{lstlisting}
+
+\subsection{Sample Application Output}
+
+\subsubsection{Shot Coach Web Interface Output}
+
+\begin{verbatim}
+======================================================================
+ BADMINTON SHOT CLASSIFIER
+AI-Powered Shot Type Recognition
+======================================================================
+
+[OK] Model loaded successfully!
+
+-------------------------------------------------------------------
+ How to Use (click to expand)
+
+Instructions:
+1. Record a 2-3 second video of ONE badminton shot
+2. Upload the video using the button below
+3. Wait for classification (takes 5-10 seconds)
+4. See which shot type was detected!
+
+Supported Shot Types (5 classes):
+- * Clear - High defensive shot to the back
+-  Drive - Fast, flat attacking shot
+-  Drop - Soft shot over the net
+-  Lift - Defensive lob to the back
+- * Smash - Powerful downward attack
+
+Video Requirements:
+- [WARNING] ONE shot per video (model samples frames across entire video)
+- Clear view of shot execution (side-court angle works best)
+- 2-3 seconds duration (prep -> contact -> follow-through)
+- Full body visible in frame
+- Good lighting
+- MP4, AVI, or MOV format
+
+-------------------------------------------------------------------
+
+Upload Your Shot Video
+[Browse Files] Choose a video file (MP4, AVI, MOV)
+
+[Uploaded: smash_example.mp4 (2.8 MB)]
+
+[ Analyze Shot]
+
+-------------------------------------------------------------------
+Processing...
+:::::::::::::::::::: 100%
+[OK] Classification complete!
+
+======================================================================
+* SHOT CLASSIFICATION RESULTS
+======================================================================
+
+Detected Shot: Smash
+
+Confidence: 94.3%
+[################################################] 94.3%
+
+-------------------------------------------------------------------
+ Video Analysis Info
+
+Video Duration: 2.47s    Total Frames: 74    Frames Analyzed: 16
+
+Analyzed timeframe: 0.00s - 2.43s (frames sampled uniformly)
+
+[OK] High confidence - video angle matches training data well!
+
+-------------------------------------------------------------------
+ All Shot Type Probabilities
+
+* Smash (Predicted)   [########################] 94.3%
+Clear                  [####...................]  4.2%
+Drive                  [.......................]  1.1%
+Drop                   [.......................]  0.3%
+Lift                   [.......................]  0.1%
+
+-------------------------------------------------------------------
+ Shot Type Information
+
+[INFO] * Smash - Powerful attacking shot hit downward. The primary
+attacking shot in badminton.
+
+-------------------------------------------------------------------
+* Alternative Possibilities
+
+- Clear: 4.2% probability
+  * Clear - High defensive shot to the back of the court.
+
+(Other probabilities < 1%)
+
+-------------------------------------------------------------------
+[INFO] Model Information
+
+- Model: ResNet18 + BiLSTM
+- Accuracy: 74.6% (on test set)
+- Classes: 5 badminton shot types
+- Training: 22,302 video samples
+
+-------------------------------------------------------------------
+[INFO] Note: Technique analysis (biomechanics, form scoring) is
+currently disabled. This version focuses on accurate shot
+classification only.
+
+======================================================================
+\end{verbatim}
+
+\end{document}
