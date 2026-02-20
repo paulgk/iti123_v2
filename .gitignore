@@ -104,7 +104,29 @@ outputs/checkpoints/
 # Raw data directories (GCS storage only)
 data/raw/**
 raw_videos/**
+data/frames/*.npy
 
 # Additional temporary files
 *.tmp
+*.gstmp
 
+# LaTeX build artifacts
+*.aux
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Training result directories (model outputs, not source)
+outputs/results_*/
+outputs/SKIP_RATIO_*.md
+
+# Local utility / config files
+presentation_config.json
+verify_dependencies.py
+
+# Variant environment / requirements files
+environment_cpu_training.yml
+requirements_cpu_training.txt
+environment.yml.backup

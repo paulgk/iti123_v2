@@ -7,7 +7,7 @@
 ## Model Comparison
 
 | Model | Type | Parameters | Accuracy | Training Time (T4) | Best For |
-|-------|------|------------|----------|-------------------|----------|
+| --- | --- | --- | --- | --- | --- |
 | **MS-G3D** | Graph CNN | 3.2M | **90-93%** | 60-80 min | **Production** ⭐ |
 | **ST-GCN** | Graph CNN | 2.5M | 89-92% | 50-70 min | Baseline |
 | **Transformer** | Attention | 4.5M | 87-91% | 70-90 min | Research |
@@ -21,29 +21,29 @@
 
 Based on recent badminton action recognition research (2024-2025):
 
-1. **[Deep learning-based badminton action recognition](https://journals.sagepub.com/doi/10.1177/1088467X251353444)** (2025)
-   - SlowFast + Siamese Network: 83.08% Top-1 accuracy
-   - Demonstrates deep learning viability for badminton
+1. [**Deep learning-based badminton action recognition**](https://journals.sagepub.com/doi/10.1177/1088467X251353444) (2025)
+  - SlowFast + Siamese Network: 83.08% Top-1 accuracy
+  - Demonstrates deep learning viability for badminton
 
-2. **[Strategy analysis using deep learning from wearables](https://www.sciencedirect.com/science/article/abs/pii/S2542660524002014)** (2024)
-   - 2D-CNN + LSTM: 90.9% shot classification
-   - Shows temporal models work well
+2. [**Strategy analysis using deep learning from wearables**](https://www.sciencedirect.com/science/article/abs/pii/S2542660524002014) (2024)
+  - 2D-CNN + LSTM: 90.9% shot classification
+  - Shows temporal models work well
 
-3. **[Motion recognition model for badminton movements](https://www.nature.com/articles/s41598-025-02771-9)** (2025)
-   - VGG16-BiLSTM-CBAM: 98% accuracy
-   - Validates LSTM approach
+3. [**Motion recognition model for badminton movements**](https://www.nature.com/articles/s41598-025-02771-9) (2025)
+  - VGG16-BiLSTM-CBAM: 98% accuracy
+  - Validates LSTM approach
 
-4. **[ST-GCN for skeleton-based action recognition](https://arxiv.org/abs/1801.07455)** (2018)
-   - First to combine GCN + action recognition
-   - Foundation for graph-based approaches
+4. [**ST-GCN for skeleton-based action recognition**](https://arxiv.org/abs/1801.07455) (2018)
+  - First to combine GCN + action recognition
+  - Foundation for graph-based approaches
 
-5. **[MS-G3D: Disentangling Graph Convolutions](https://arxiv.org/abs/2003.14111)** (CVPR 2020)
-   - State-of-the-art: 93.0%+ on NTU RGB+D
-   - Multi-scale aggregation innovation
+5. [**MS-G3D: Disentangling Graph Convolutions**](https://arxiv.org/abs/2003.14111) (CVPR 2020)
+  - State-of-the-art: 93.0%+ on NTU RGB+D
+  - Multi-scale aggregation innovation
 
-6. **[Two-stream GCN-Transformer](https://www.nature.com/articles/s41598-025-87752-8)** (2025)
-   - Combines GCN + Transformer
-   - Latest trend in skeleton-based recognition
+6. [**Two-stream GCN-Transformer**](https://www.nature.com/articles/s41598-025-87752-8) (2025)
+  - Combines GCN + Transformer
+  - Latest trend in skeleton-based recognition
 
 ---
 
@@ -183,7 +183,7 @@ Dropout → FC-5
 #### MS-G3D (Best Model)
 
 | Metric | Score |
-|--------|-------|
+| --- | --- |
 | Test Accuracy | **90-93%** |
 | F1 (Macro) | 0.87-0.91 |
 | F1 (Weighted) | 0.89-0.92 |
@@ -201,7 +201,7 @@ Dropout → FC-5
 #### ST-GCN
 
 | Metric | Score |
-|--------|-------|
+| --- | --- |
 | Test Accuracy | 89-92% |
 | F1 (Macro) | 0.86-0.90 |
 | Training Time | 50-70 min |
@@ -216,7 +216,7 @@ Dropout → FC-5
 #### Skeleton Transformer
 
 | Metric | Score |
-|--------|-------|
+| --- | --- |
 | Test Accuracy | 87-91% |
 | F1 (Macro) | 0.84-0.88 |
 | Training Time | 70-90 min |
@@ -235,7 +235,7 @@ Dropout → FC-5
 #### BiLSTM
 
 | Metric | Score |
-|--------|-------|
+| --- | --- |
 | Test Accuracy | 84-88% |
 | F1 (Macro) | 0.81-0.85 |
 | Training Time | 40-60 min |
@@ -285,21 +285,21 @@ From [Multi-Scale Skeleton Simplification GCN (2024)](https://ietresearch.online
 ### Recommended Approach
 
 1. **Start with MS-G3D**
-   - Best accuracy
-   - State-of-the-art architecture
-   - Worth the extra 10-15 min training time
+  - Best accuracy
+  - State-of-the-art architecture
+  - Worth the extra 10-15 min training time
 
 2. **Train ST-GCN as baseline**
-   - Validate that graph structure helps
-   - Faster alternative to MS-G3D
+  - Validate that graph structure helps
+  - Faster alternative to MS-G3D
 
 3. **Train BiLSTM for comparison**
-   - Temporal baseline
-   - Shows graph improvement (ST-GCN vs BiLSTM ≈ +5-7%)
+  - Temporal baseline
+  - Shows graph improvement (ST-GCN vs BiLSTM ≈ +5-7%)
 
 4. **Optional: Train Transformer**
-   - Research interest
-   - Explore attention mechanisms
+  - Research interest
+  - Explore attention mechanisms
 
 ### Hyperparameters
 
@@ -392,21 +392,21 @@ MS-G3D (0.4) + ST-GCN (0.3) + Transformer (0.3)
 ### Key Takeaways
 
 1. **Graph CNNs (MS-G3D, ST-GCN) are best for skeleton data**
-   - Leverage body structure
-   - 5-7% better than temporal models
+  - Leverage body structure
+  - 5-7% better than temporal models
 
 2. **MS-G3D is the recommended production model**
-   - State-of-the-art: 90-93% accuracy
-   - Multi-scale aggregation captures patterns at multiple levels
+  - State-of-the-art: 90-93% accuracy
+  - Multi-scale aggregation captures patterns at multiple levels
 
 3. **All models benefit from ROI extraction**
-   - 0% multi-player contamination
-   - Clean training data
+  - 0% multi-player contamination
+  - Clean training data
 
 4. **Phase 1.5 data is high quality**
-   - 15,822 usable samples
-   - Clean 5-class mapping
-   - Single-player focused
+  - 15,822 usable samples
+  - Clean 5-class mapping
+  - Single-player focused
 
 ### Expected Performance Hierarchy
 
@@ -421,7 +421,7 @@ MS-G3D (90-93%) > ST-GCN (89-92%) > Transformer (87-91%) > BiLSTM (84-88%)
 
 ---
 
-**Notebook:** [badminton_action_recognition_training.ipynb](../notebooks/badminton_action_recognition_training.ipynb)
-**Training Guide:** [COLAB_TRAINING_GUIDE.md](COLAB_TRAINING_GUIDE.md)
+**Notebook:** [badminton_action_recognition_training.ipynb](./../notebooks/badminton_action_recognition_training.ipynb)
+**Training Guide:** [COLAB_TRAINING_GUIDE.md](./COLAB_TRAINING_GUIDE.md)
 **Status:** Ready to train
 **Last updated:** 2026-02-03

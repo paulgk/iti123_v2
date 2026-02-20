@@ -87,48 +87,48 @@
 ### ✅ What Works
 
 1. **Automatic Shot Detection**
-   - Uses your trained model
-   - 74.6% accuracy
-   - Confidence scores
+  - Uses your trained model
+  - 74.6% accuracy
+  - Confidence scores
 
 2. **Technique Analysis**
-   - Smash: 5 key metrics
-   - Clear: 5 key metrics
-   - 0-100 scoring per metric
-   - Overall score calculation
+  - Smash: 5 key metrics
+  - Clear: 5 key metrics
+  - 0-100 scoring per metric
+  - Overall score calculation
 
 3. **Smart Feedback**
-   - Identifies strengths
-   - Highlights areas to improve
-   - Specific, actionable tips
-   - Compares to optimal values
+  - Identifies strengths
+  - Highlights areas to improve
+  - Specific, actionable tips
+  - Compares to optimal values
 
 4. **Easy to Use**
-   - Web interface (no coding needed)
-   - Upload video → Get results
-   - 10-30 seconds per analysis
-   - Downloadable reports
+  - Web interface (no coding needed)
+  - Upload video → Get results
+  - 10-30 seconds per analysis
+  - Downloadable reports
 
 ### 🚫 Current Limitations
 
 1. **Shot Types**: Only Smash and Clear
-   - Drive, Drop, Lift coming soon
-   - Model can detect all 5, but analysis only for 2
+  - Drive, Drop, Lift coming soon
+  - Model can detect all 5, but analysis only for 2
 
 2. **2D Analysis Only**
-   - No depth information
-   - Side-view works best
-   - Some metrics approximate
+  - No depth information
+  - Side-view works best
+  - Some metrics approximate
 
 3. **Pose Detection Requirements**
-   - Need good lighting
-   - Full body visibility preferred
-   - Clear background helps
+  - Need good lighting
+  - Full body visibility preferred
+  - Clear background helps
 
 4. **Text Output Only**
-   - No visual overlays (yet)
-   - No video annotations (yet)
-   - Per your request for simplicity
+  - No visual overlays (yet)
+  - No video annotations (yet)
+  - Per your request for simplicity
 
 ---
 
@@ -198,20 +198,20 @@ shot_coach/
 ### Quick Start (5 minutes)
 
 1. **Install:**
-   ```bash
+```bash
    cd shot_coach
    pip install -r requirements.txt
-   ```
+```
 
 2. **Run:**
-   ```bash
+```bash
    streamlit run app.py
-   ```
+```
 
 3. **Analyze:**
-   - Upload video in browser
-   - Click "Analyze Shot"
-   - Get instant feedback!
+  - Upload video in browser
+  - Click "Analyze Shot"
+  - Get instant feedback!
 
 ### Command Line Testing
 
@@ -254,34 +254,34 @@ Uses your trained model:
 ### Why These Choices?
 
 1. **Streamlit for UI**
-   - Fast to build
-   - Professional look
-   - No frontend coding needed
-   - Easy deployment
+  - Fast to build
+  - Professional look
+  - No frontend coding needed
+  - Easy deployment
 
 2. **Text-only output**
-   - Per your request
-   - Keeps it simple
-   - Easy to download/share
-   - Visual overlays can be added later
+  - Per your request
+  - Keeps it simple
+  - Easy to download/share
+  - Visual overlays can be added later
 
 3. **Smash + Clear first**
-   - Most visually distinct
-   - Easiest to analyze
-   - Fastest to implement
-   - Others can be added incrementally
+  - Most visually distinct
+  - Easiest to analyze
+  - Fastest to implement
+  - Others can be added incrementally
 
 4. **Rule-based analysis**
-   - Interpretable (not black-box)
-   - Fast (no ML needed)
-   - Easy to tune/improve
-   - Good enough for MVP
+  - Interpretable (not black-box)
+  - Fast (no ML needed)
+  - Easy to tune/improve
+  - Good enough for MVP
 
 5. **On-the-fly pose extraction**
-   - Better UX (just upload video)
-   - No pre-processing
-   - Works with any video
-   - Slight performance cost acceptable
+  - Better UX (just upload video)
+  - No pre-processing
+  - Works with any video
+  - Slight performance cost acceptable
 
 ---
 
@@ -364,7 +364,7 @@ CMD streamlit run app.py
 ### Smash Analysis
 
 | Metric | What It Measures | Optimal Value | Why It Matters |
-|--------|------------------|---------------|----------------|
+| --- | --- | --- | --- |
 | Arm Extension | How fully extended arm is at contact | 95%+ | More power, better reach |
 | Shoulder Rotation | Rotation from prep to follow-through | 120°+ | Power generation |
 | Knee Bend | Knee angle before jump | 30-45° | Explosive power loading |
@@ -374,7 +374,7 @@ CMD streamlit run app.py
 ### Clear Analysis
 
 | Metric | What It Measures | Optimal Value | Why It Matters |
-|--------|------------------|---------------|----------------|
+| --- | --- | --- | --- |
 | Elbow Height | Elbow position before contact | 25%+ above shoulder | Power, trajectory |
 | Arm Extension | How fully extended at contact | 92%+ | Distance, control |
 | Swing Arc | Total rotation through shot | 100°+ | Power generation |

@@ -1,15 +1,61 @@
+# Conda environment for ITI123 Badminton Shot Classification Project
+# Includes dependencies for:
+#   - Phase 1.5: Pose extraction (MediaPipe)
+#   - Phase 2: Video-based training (PyTorch)
+#   - Phase 3: Shot Coach App
+#
+# Usage:
+#   Create environment:     conda env create -f environment.yml
+#   Update environment:     conda env update -f environment.yml --prune
+#   Activate:               conda activate iti123
+
 name: iti123
+
 channels:
+  - pytorch
   - conda-forge
   - defaults
+
 dependencies:
+  # Python
   - python=3.10
+
+  # ============================================================================
+  # Deep Learning Framework (CPU version)
+  # ============================================================================
+  - pytorch>=2.0.0
+  - torchvision>=0.15.0
+  - torchaudio>=2.0.0
+  - cpuonly  # CPU-only PyTorch (remove this line for GPU support)
+
+  # ============================================================================
+  # Data Science & ML
+  # ============================================================================
+  - numpy>=1.24.0
+  - pandas>=2.0.0
+  - scikit-learn>=1.3.0
+
+  # ============================================================================
+  # Visualization & Progress
+  # ============================================================================
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+  - tqdm>=4.65.0
+
+  # ============================================================================
+  # Image Processing
+  # ============================================================================
+  - pillow>=10.0.0
+
+  # ============================================================================
+  # Pip-only packages
+  # ============================================================================
   - pip
-  - numpy=1.24
-  - opencv=4.8
   - pip:
-    - mediapipe==0.10.9
-    - pandas
-    - tqdm
-    - scikit-learn
-    - pillow
+    - opencv-python>=4.8.0  # Video/image processing (cv2)
+    - mediapipe==0.10.9     # Pose extraction for Phase 1.5
+
+# Notes:
+#   - opencv-python via pip is more reliable than conda's opencv
+#   - cpuonly ensures CPU-optimized PyTorch (~200MB vs ~3GB with CUDA)
+#   - For GPU training, remove 'cpuonly' and install: pytorch-cuda=11.8

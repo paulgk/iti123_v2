@@ -56,8 +56,27 @@ def test_shot_coach(video_path):
 
     shot_type = classification_result['predicted_class']
     confidence = classification_result['confidence']
+    metadata = classification_result.get('metadata', {})
 
     print(f"✅ Shot Type: {shot_type} ({confidence*100:.1f}% confidence)")
+
+    # Display video metadata
+    if metadata:
+        print(f"\nVideo Analysis Info:")
+        print(f"  Duration: {metadata.get('duration', 0):.2f}s")
+        print(f"  Total frames: {metadata.get('total_frames', 0)}")
+        print(f"  FPS: {metadata.get('fps', 0):.1f}")
+        print(f"  Frames analyzed: {metadata.get('num_frames_analyzed', 16)}")
+
+        if 'sampled_times' in metadata:
+            times = metadata['sampled_times']
+            print(f"  Timeframe: {times[0]:.2f}s - {times[-1]:.2f}s")
+
+        # Warnings
+        duration = metadata.get('duration', 0)
+        if duration > 5:
+            print(f"\n⚠️  Warning: Video is {duration:.1f}s long. For best results, trim to 2-3 seconds.")
+
     print()
 
     # Check if supported

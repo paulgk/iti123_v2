@@ -160,7 +160,7 @@ which python  # Should show path to conda environment
 
 **With 8 workers on 10-core Mac:**
 - Processing speed: ~8-10 clips/second
-- Total time for 23,531 clips: **~40-50 minutes**
+- Total time for 23,531 clips: **\~40-50 minutes**
 - Much faster than Colab (2-3 hours)
 - More stable (no crashes)
 
@@ -210,24 +210,24 @@ bash setup_conda_env.sh  # Recreate
 ## Next Steps After Extraction
 
 1. **Verify extraction:**
-   ```bash
+```bash
    find data/processed/poses -name "*_pose.pkl" | wc -l
    # Should show ~23,531
-   ```
+```
 
 2. **Check metadata:**
-   ```bash
+```bash
    cat data/metadata.csv | head
-   ```
+```
 
 3. **Upload to GCS (optional):**
-   ```bash
+```bash
    gsutil -m rsync -r data/processed/poses/ gs://iti123storage/features/poses/
-   ```
+```
 
 4. **Train models in Colab:**
-   - Use `notebooks/deep_learning_training_colab.ipynb`
-   - Download poses from GCS or upload directly
+  - Use `notebooks/deep_learning_training_colab.ipynb`
+  - Download poses from GCS or upload directly
 
 ---
 

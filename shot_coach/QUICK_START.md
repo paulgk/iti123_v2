@@ -10,7 +10,7 @@ Get your Shot Coach running in 5 minutes!
 
 ## Installation (2 minutes)
 
-1. **Navigate to shot_coach directory:**
+1. **Navigate to shot\_coach directory:**
 
 ```bash
 cd shot_coach
@@ -128,20 +128,20 @@ pip install <missing_module>
 ## Tips for Best Results
 
 1. **Video Quality:**
-   - Use good lighting
-   - Stable camera (no shaking)
-   - Clear background
-   - 1080p or 720p resolution
+  - Use good lighting
+  - Stable camera (no shaking)
+  - Clear background
+  - 1080p or 720p resolution
 
 2. **Shot Execution:**
-   - Full body in frame
-   - Complete shot motion (prep → contact → follow-through)
-   - Not too fast (normal speed)
+  - Full body in frame
+  - Complete shot motion (prep → contact → follow-through)
+  - Not too fast (normal speed)
 
 3. **Camera Position:**
-   - Side view works best
-   - About 3-5 meters away
-   - Eye level or slightly above
+  - Side view works best
+  - About 3-5 meters away
+  - Eye level or slightly above
 
 ## Next Steps
 
@@ -152,7 +152,7 @@ pip install <missing_module>
 
 ## Need Help?
 
-Check the full [README.md](README.md) for:
+Check the full [README.md](./README.md) for:
 - Detailed documentation
 - Troubleshooting guide
 - Technical architecture
