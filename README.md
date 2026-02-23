@@ -1,289 +1,85 @@
-# AI Badminton Coach v2.0
+# Badminton Shot Coach
 
-An AI-powered coaching system that analyzes badminton stroke technique using pose estimation and provides personalized feedback based on professional benchmarks.
+An AI system that watches a badminton video and classifies the shot type. Built as an ITI123 Generative AI & Deep Learning project.
 
----
-
-## Quick Start
-
-### 1. Installation
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Verify installation
-python diagnose.py
-```
-
-### 2. Analyze a Video
-
-```bash
-python analyze_video.py your_video.mp4 Clear
-# or
-python analyze_video.py your_video.mp4 Smash
-```
-
-### 3. Web Interface
-
-```bash
-streamlit run src/deployment/streamlit_app.py
-```
+**Live demo:** [huggingface.co/spaces/paulgk/badminton-shot](https://huggingface.co/spaces/paulgk/badminton-shot)
 
 ---
 
-## Features
+## What It Does
 
-- **Pose Estimation**: MediaPipe-based biomechanical analysis
-- **8 Key Metrics**: Arm extension, velocity, elbow angle, posture, timing, contact point, forearm angle, shoulder rotation
-- **Professional Benchmarks**: Derived from 3,347 professional strokes
-- **Personalized Feedback**: Severity-graded issues (critical/major/minor/good)
-- **Practice Drills**: Specific exercises for each identified issue
-- **Visualizations**: Radar charts, bar charts, score gauges, comprehensive reports
+Upload a short video clip of a badminton shot and the app returns:
 
----
-
-## Usage
-
-### Command Line
-
-**Analyze a video:**
-```bash
-python analyze_video.py video.mp4 Clear
-```
-
-**Check environment:**
-```bash
-python diagnose.py
-```
-
-### Web Interface
-
-**Launch Streamlit app:**
-```bash
-streamlit run src/deployment/streamlit_app.py
-```
-
-Features:
-- Upload video files or use sample clips
-- Interactive visualizations
-- Download comprehensive reports
-- Three-tab view: Feedback / Visualizations / Priority Actions
+- Predicted shot type (Clear, Drive, Drop, Lift, or Smash)
+- Confidence score and probability breakdown for all 5 classes
+- Video metadata (duration, frame count, which frames were sampled)
+- Automatic warnings (video too long, low confidence, etc.)
 
 ---
 
-## System Architecture
+## How It Works
 
-```
-Video Input (.mp4, .avi, etc.)
-    ↓
-MediaPipe Pose Estimation (33 keypoints)
-    ↓
-Feature Engineering (427 statistical features)
-    ↓
-Technique Analysis (vs Professional Benchmarks)
-    ↓
-Coaching Feedback + Visualizations
-```
+The model is a **ResNet18 + BiLSTM** pipeline:
 
-### Components
+1. **ResNet18** extracts visual features from 16 frames sampled evenly across the clip
+2. **BiLSTM** tracks how those features change over time to capture motion patterns
+3. Trained on 22,302 clips from the [ShuttleSet](https://arxiv.org/abs/2306.04948) professional match dataset
+4. Achieves **74.6% accuracy** across 5 shot types on a held-out test set
 
-1. **Pose Extraction** ([src/data_processing/extract_poses.py](src/data_processing/extract_poses.py))
-   - MediaPipe Pose (Model Complexity: 2)
-   - Multi-player detection with executor identification
-   - Temporal interpolation for missing frames
-
-2. **Feature Engineering** ([src/data_processing/feature_engineering_v2.py](src/data_processing/feature_engineering_v2.py))
-   - 60 per-frame spatial features
-   - Temporal features (velocity, acceleration, jerk)
-   - 427 statistical aggregations
-
-3. **Technique Benchmarks** ([src/coaching/technique_benchmarks.py](src/coaching/technique_benchmarks.py))
-   - Professional ranges (25th-75th percentiles)
-   - Separate benchmarks for Clear vs Smash
-   - Based on 3,347 stroke dataset
-
-4. **Coaching Feedback** ([src/coaching/feedback_generator.py](src/coaching/feedback_generator.py))
-   - 6 analysis functions (arm, velocity, elbow, posture, timing, contact)
-   - Severity classification
-   - Specific practice drills
-
-5. **Visualizations** ([src/coaching/visualizations.py](src/coaching/visualizations.py))
-   - Radar charts (normalized technique profile)
-   - Bar charts (metric-by-metric breakdown)
-   - Score gauges (0-100 overall score)
-   - Comprehensive reports (multi-panel view)
-
----
-
-## Biomechanical Metrics
-
-| Metric | Clear Target | Smash Target | Description |
-|--------|--------------|--------------|-------------|
-| **Arm Extension** | 0.062 - 0.121 | 0.077 - 0.146 | Racket-hand distance at contact |
-| **Velocity** | 55.8 - 92.7 | 68.7 - 109.2 | Wrist movement speed |
-| **Elbow Angle** | 116.9° - 141.6° | 121.3° - 148.0° | Joint angle at contact |
-| **Posture** | -93.7 - 4.5 | -75.8 - 22.0 | Torso lean (forward/back) |
-| **Timing** | 0.20 - 0.69 | 0.25 - 0.71 | Peak acceleration timing |
-| **Contact Point** | -0.005 - 0.045 | -0.027 - 0.036 | Wrist height relative to head |
-| **Forearm Angle** | 31.5° - 68.9° | 14.8° - 47.1° | Vertical orientation |
-| **Shoulder Rotation** | -31.5° - 3.2° | -31.6° - 4.1° | Lateral rotation |
-
----
-
-## Dataset
-
-**ShuttleSet**: Professional badminton dataset
-- **Citation**: Wang et al. (2023). "ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis"
-- **Source**: [arXiv:2306.04948](https://arxiv.org/abs/2306.04948)
-- **Clips Processed**: 4,983 professional strokes
-- **Strokes Used for Benchmarks**: 3,347 (Clear + Smash only)
-- **Players**: Professional singles matches
-
----
-
-## Troubleshooting
-
-### MediaPipe Mutex Error
-
-**Symptom**: `[mutex.cc : 452] RAW: Lock blocking`
-
-**Fix**:
-```bash
-pip uninstall protobuf -y
-pip install protobuf==3.20.3
-```
-
-**Verify**:
-```bash
-python diagnose.py
-```
-
-### Video Processing Fails
-
-1. **Check video format**: Supported formats: .mp4, .avi, .mov, .mkv
-2. **Check player visibility**: Player must be visible throughout stroke
-3. **Check video quality**: Higher resolution = better pose detection
-4. **Run diagnostic**: `python diagnose.py`
-
-### Dependencies
-
-Required versions:
-- Python: 3.8-3.10 (3.10 recommended)
-- MediaPipe: 0.10.9
-- Protobuf: 3.20.3 (critical!)
-- OpenCV: 4.x
-- NumPy, Pandas, Matplotlib, Streamlit
-
----
+An earlier approach using MediaPipe body pose tracking (skeleton keypoints) was tried first but achieved only ~50% accuracy — no better than random — because players use nearly identical body positions for Clear and Smash shots. The racket angle is the key discriminator, and body pose data cannot capture it.
 
 ## Project Structure
 
 ```
 iti123_v2/
-├── analyze_video.py          # Main video analysis script
-├── diagnose.py                # Environment diagnostic tool
-├── requirements.txt           # Python dependencies
+├── notebooks/                # Training notebooks (Colab)
+│   ├── badminton_video_training_colab_v3_optimized.ipynb  # Final training run
+│   └── ...
 │
 ├── src/
-│   ├── data_processing/
-│   │   ├── extract_poses.py           # MediaPipe pose extraction
-│   │   └── feature_engineering_v2.py   # Biomechanical features
-│   │
-│   ├── coaching/
-│   │   ├── technique_benchmarks.py     # Professional ranges
-│   │   ├── feedback_generator.py       # Coaching advice
-│   │   └── visualizations.py           # Charts and reports
-│   │
-│   └── deployment/
-│       └── streamlit_app.py            # Web interface
+│   └── data_processing/      # Pose extraction (Phase 1 / archival)
 │
-├── data/
-│   └── processed/
-│       ├── clips/              # Video clips (4,983)
-│       └── features/           # Pre-extracted features
+├── outputs/
+│   ├── results_optionA/      # Trained model weights (best_model.pth)
+│   └── reports/              # Final project reports (.tex / .pdf)
 │
-└── outputs/
-    └── video_analysis/         # Analysis results
+└── data/
+    └── processed/            # Extracted features and clip metadata
 ```
 
 ---
 
-## Output Files
+## Model Performance
 
-After running `analyze_video.py`, you'll get:
+| Shot Type | Precision | Recall | F1    | Test Clips |
+|-----------|-----------|--------|-------|------------|
+| Clear     | 67.6%     | 89.2%  | 76.9% | 535        |
+| Drive     | 58.3%     | 61.6%  | 59.9% | 740        |
+| Drop      | 90.7%     | 74.6%  | 81.9% | 1,518      |
+| Lift      | 71.0%     | 75.7%  | 73.3% | 966        |
+| Smash     | 76.5%     | 75.8%  | 76.1% | 724        |
+| **Overall** | **72.8%** | **75.4%** | **73.6%** | **4,483** |
 
-```
-outputs/video_analysis/<video_name>/
-├── feedback.txt                         # Text summary
-├── comprehensive_report_<stroke>.png    # Multi-panel report
-├── radar_chart_<stroke>.png             # Technique profile
-├── metrics_bar_chart_<stroke>.png       # Metric breakdown
-└── score_gauge_<stroke>.png             # Overall score
-```
-
----
-
-## Examples
-
-### Example 1: Analyze Clear Stroke
-
-```bash
-python analyze_video.py my_clear.mp4 Clear
-```
-
-**Output**:
-```
-Overall Score: 74/100 - Good ⭐⭐
-
-Issues Found:
-  ⚠️  Major: 1
-  💡 Minor: 2
-  ✅ Good: 3
-
-TOP PRIORITY ACTIONS
-1. ⚠️ Velocity: Below target for Clear
-   🎯 Resistance band training, 3 sets × 12 reps
-```
-
-### Example 2: Web Interface
-
-```bash
-streamlit run src/deployment/streamlit_app.py
-```
-
-1. Upload your video or select a sample
-2. Choose stroke type (Clear/Smash)
-3. Click "Analyze Technique"
-4. View results in 3 tabs
-5. Download comprehensive report
+Drive is the hardest class — it's visually similar to Lift and also has the least training data.
 
 ---
 
-## Development
+## Training
 
-### Running Tests
+Training was done on Google Colab (T4 GPU). The final notebook is [`notebooks/badminton_video_training_colab_v3_optimized.ipynb`](notebooks/badminton_video_training_colab_v3_optimized.ipynb).
 
-```bash
-# Verify complete system
-python diagnose.py
-
-# Test with sample clip
-python analyze_video.py data/processed/clips/01_set1_rally1_ball2_Clear.mp4 Clear
-```
-
-### Extending the System
-
-1. **Add New Metrics**: Edit [src/data_processing/feature_engineering_v2.py](src/data_processing/feature_engineering_v2.py)
-2. **Modify Benchmarks**: Update [src/coaching/technique_benchmarks.py](src/coaching/technique_benchmarks.py)
-3. **Customize Feedback**: Edit [src/coaching/feedback_generator.py](src/coaching/feedback_generator.py)
-4. **Add Visualizations**: Extend [src/coaching/visualizations.py](src/coaching/visualizations.py)
+Key training decisions:
+- **Focal Loss** to handle the 9.2:1 class imbalance (Drop >> Clear)
+- **Class weights** giving minority classes proportionally more importance
+- **Two-stage training**: freeze ResNet18 backbone first, then unfreeze and fine-tune end-to-end
+- **16 frames** sampled evenly per clip at 224×224 resolution
+- **Early stopping** with patience=10 on validation accuracy
 
 ---
 
-## Citation
+## Dataset
 
-If you use this system in your research, please cite the underlying dataset:
+**ShuttleSet** — Wei-Yao Wang et al. (2023)
 
 ```bibtex
 @article{wang2023shuttleset,
@@ -294,20 +90,14 @@ If you use this system in your research, please cite the underlying dataset:
 }
 ```
 
----
-
-## License
-
-This project uses the ShuttleSet dataset. Please refer to the original dataset's license terms.
+22,302 labeled clips from 40 professional singles matches, filmed from broadcast side-court camera angles.
 
 ---
 
-## Contact
+## Acknowledgments
 
-For questions or issues, please open an issue on the project repository.
+Code development and report writing assisted by Claude Code (Anthropic). All model training, evaluation, and application development by Paul George Karippaparambil.
 
 ---
 
-**Last Updated**: January 16, 2026
-**Version**: 2.0
-**Status**: Production Ready ✅
+**Last updated:** February 2026
