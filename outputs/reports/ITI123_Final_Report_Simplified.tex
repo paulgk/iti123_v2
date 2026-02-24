@@ -1,0 +1,804 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{array}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+
+\setstretch{1.15}
+
+\title{\textbf{ITI123 Final Project Report}\\\vspace{0.3cm}Teaching AI to Recognize Badminton Shots:\\A Journey from Failure to Success}
+\author{\textbf{Paul George Karippaparambil}\\Student ID: 8031408E}
+\date{ITI123 Generative AI \& Deep Learning\\February 06, 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+This project built an AI system that can watch a badminton video and tell you what type of shot was played. I tried three different approaches: First, I attempted using body skeleton tracking (like stick figures) to distinguish between Clear and Smash shots, but this failed because players have identical body positions for both shots. Second, I switched to analyzing the actual video frames using a neural network that combines image recognition with motion tracking, achieving 74.6\% accuracy across five different shot types. Finally, I built a user-friendly web application where anyone can upload a video and get instant shot analysis with confidence scores and helpful warnings.
+
+The key lesson: Sometimes the obvious approach doesn't work, and you need to pivot to what the data actually shows you. This project demonstrates the complete AI development process---from initial failure through successful implementation to real-world deployment.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction: The Problem I'm Solving}
+
+\subsection{Why This Matters}
+
+As someone who plays badminton recreationally, I've always struggled to improve my technique without regular access to a coach. Professional coaching is expensive, requires scheduling, and isn't always available. I wondered: could AI provide instant feedback by watching my shots?
+
+The challenge is harder than it sounds. Unlike tennis where a serve looks completely different from a volley, many badminton shots look very similar---especially overhead shots like Clears and Smashes. A player's body position might be identical, but the racket angle makes all the difference between a defensive Clear sailing to the back of the court and an attacking Smash driving downward.
+
+\subsection{What I Built}
+
+This project has three parts:
+
+\begin{enumerate}
+\item \textbf{Phase 1 - The Failed Experiment:} Tried using body pose tracking (think stick figures) to classify shots. Result: 50\% accuracy---no better than random guessing. But this failure taught me what features actually matter.
+
+\item \textbf{Phase 2 - The Successful Model:} Built a neural network that watches video frames and tracks motion over time. Result: 74.6\% accuracy across five shot types (Clear, Drive, Drop, Lift, Smash).
+
+\item \textbf{Phase 3 - The User Application:} Created a web app called ``Shot Coach'' where users upload videos and get instant analysis with explanations and confidence scores. The app is publicly deployed at \url{https://huggingface.co/spaces/paulgk/badminton-shot} and the full project source is available at \url{https://github.com/paulgk/iti123_v2}.
+\end{enumerate}
+
+\subsection{The Five Shot Types}
+
+I trained the system to recognize these five fundamental badminton shots:
+
+\begin{table}[H]
+\centering
+\caption{Badminton Shot Types}
+\begin{tabular}{p{2.5cm}p{5cm}p{5cm}}
+\toprule
+\textbf{Shot Type} & \textbf{What It Looks Like} & \textbf{When You Use It} \\
+\midrule
+Clear & High and deep to the back court & Push opponent away, buy recovery time \\
+Drive & Fast and flat at chest height & Quick attack, maintain pressure \\
+Drop & Gentle shot that barely clears the net & Deceptive attack, make opponent run forward \\
+Lift & High defensive lob from low position & Recover when under pressure \\
+Smash & Powerful downward attack & Primary scoring shot \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Dataset: Where the Training Data Came From}
+
+I used a publicly available dataset called \textbf{ShuttleSet}, which contains professional match videos already labeled with shot types. The dataset includes:
+
+\begin{itemize}
+\item \textbf{22,302 video clips} from 40 professional matches
+\item Each clip shows one shot from contact through follow-through
+\item Five shot types with varying amounts of data
+\item Videos filmed from broadcast camera angles (side court view)
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Dataset Distribution}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Shot Type} & \textbf{Samples} & \textbf{Percentage} & \textbf{Balance} \\
+\midrule
+Drop & 7,088 & 31.8\% & Majority class \\
+Lift & 4,851 & 21.8\% & Well-represented \\
+Drive & 3,704 & 16.6\% & Moderate \\
+Smash & 3,596 & 16.1\% & Moderate \\
+Clear & 3,063 & 13.7\% & Minority class \\
+\midrule
+\textbf{Total} & 22,302 & 100\% & Imbalanced (9.2:1 ratio) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The biggest challenge? \textbf{Class imbalance}---I had 2.3 times more Drop shots than Clears. This means the AI might become biased toward predicting Drop shots more often.
+
+\section{Phase 1: Why Body Pose Tracking Failed}
+
+\subsection{The Initial Hypothesis}
+
+My first idea seemed logical: extract the player's body skeleton from each video frame (33 keypoints like shoulders, elbows, wrists) and track how these points move over time. I hypothesized that Clear shots would show extended wrists pointing upward, while Smash shots would show flexed wrists pointing downward.
+
+\subsection{What I Actually Built}
+
+\textbf{Technology Stack:}
+\begin{itemize}
+\item \textbf{MediaPipe Pose:} Google's tool that detects body keypoints from video
+\item \textbf{Feature Engineering:} Created 60 measurements per frame, including:
+  \begin{itemize}
+  \item Arm extension (shoulder to wrist distance)
+  \item Joint angles (elbow, shoulder, wrist)
+  \item Body posture (torso lean, shoulder rotation)
+  \item Velocities (how fast each feature changes)
+  \end{itemize}
+\item \textbf{Models Tested:} Four different neural network architectures
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Phase 1 Models and Results (Clear vs Smash Only)}
+\begin{tabular}{lp{6cm}c}
+\toprule
+\textbf{Model} & \textbf{How It Works} & \textbf{Accuracy} \\
+\midrule
+LSTM & Remembers motion sequence like reading left-to-right & 45.7\% \\
+BiLSTM & Reads motion both forward and backward & 43.3\% \\
+GRU & Simpler version of LSTM, faster training & 45.0\% \\
+ResNet1D & Looks for patterns across the motion sequence & 49.1\% \\
+\midrule
+Random Guessing & Flip a coin & 50.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The Shocking Discovery}
+
+All models performed at or \textbf{below random guessing}. This wasn't a training problem---it was a fundamental data problem. When I analyzed the wrist angles at contact:
+
+\begin{table}[H]
+\centering
+\caption{Wrist Angle Comparison}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Feature} & \textbf{Clear Shots} & \textbf{Smash Shots} \\
+\midrule
+Average wrist angle & 85.3 degrees & 84.2 degrees \\
+\textbf{Difference} & \multicolumn{2}{c}{\textbf{Only 1.1 degrees!}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Translation:} My hypothesis was completely wrong. Players use nearly identical wrist positions for both shots at the moment of contact. The difference happens in the racket angle, which body tracking cannot see.
+
+\subsection{What's Actually Missing from Body Pose Data}
+
+\begin{enumerate}
+\item \textbf{Racket angle:} MediaPipe only tracks body parts, not equipment. The racket face angle is the most important discriminator---Clears angle upward, Smashes angle downward.
+
+\item \textbf{Shuttlecock trajectory:} The video clips end at contact, so we never see where the shuttlecock goes.
+
+\item \textbf{Follow-through motion:} Clears continue upward after contact, Smashes snap downward. The clips are too short to capture this.
+
+\item \textbf{Racket head speed:} Smashes have much faster racket speeds, but body velocities don't capture this.
+\end{enumerate}
+
+\subsection{Lessons Learned}
+
+This failure was actually valuable:
+\begin{itemize}
+\item \textbf{Fail fast:} I discovered the approach wouldn't work within 2 weeks, not 2 months
+\item \textbf{Data trumps algorithms:} No amount of model tuning can extract information that isn't in the data
+\item \textbf{Domain knowledge matters:} Talking to coaches revealed that racket angle, not body position, determines shot type
+\end{itemize}
+
+\section{Phase 2: The Video-Based Solution That Worked}
+
+\subsection{The New Approach}
+
+Instead of extracting body poses, I decided to feed raw video frames directly into a neural network. The key insight: the visual appearance captures everything---body position, racket angle, motion blur from speed, and even background context that might hint at shuttlecock trajectory.
+
+\subsection{The Model Architecture (Simplified)}
+
+Think of the model as two connected systems working together:
+
+\begin{enumerate}
+\item \textbf{Image Recognition System (ResNet18):}
+  \begin{itemize}
+  \item Pre-trained on millions of everyday images (cats, cars, buildings)
+  \item Adapted to recognize badminton-specific visual patterns
+  \item Processes 16 frames sampled evenly from each video
+  \item Extracts 512 features per frame (like "racket visible", "arm extended", "motion blur")
+  \end{itemize}
+
+\item \textbf{Motion Tracking System (BiLSTM):}
+  \begin{itemize}
+  \item Takes the 16 frame features and tracks how they change over time
+  \item BiLSTM = Bidirectional LSTM (reads the sequence both forward and backward)
+  \item Learns temporal patterns like "racket starts high, moves down fast = Smash"
+  \item Outputs probability scores for all 5 shot types
+  \end{itemize}
+\end{enumerate}
+
+\textbf{Simple analogy:} ResNet18 is like taking snapshots and describing each one ("arm raised", "racket visible"). BiLSTM is like watching those snapshots in sequence and understanding the story ("arm raised then moves down fast = attacking shot").
+
+\subsection{Training Strategy}
+
+\begin{table}[H]
+\centering
+\caption{Training Configuration}
+\begin{tabular}{ll}
+\toprule
+\textbf{Setting} & \textbf{Value \& Explanation} \\
+\midrule
+Training data & 15,611 clips (70\% of dataset) \\
+Validation data & 2,208 clips (10\% for tuning) \\
+Test data & 4,483 clips (20\% for final evaluation) \\
+Frames per clip & 16 frames (sampled evenly) \\
+Image size & 224x224 pixels \\
+Batch size & 64 clips at a time \\
+Training time & 44 epochs (~6 hours on Colab GPU) \\
+\midrule
+\multicolumn{2}{l}{\textbf{Special Techniques:}} \\
+Focal Loss & Penalizes mistakes on minority classes more heavily \\
+Class weights & Gives Clear shots 2.9x more importance than Drops \\
+Two-stage training & First freeze image recognition, then fine-tune everything \\
+Early stopping & Stop if validation accuracy doesn't improve for 10 epochs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Results: 74.6\% Accuracy}
+
+\begin{table}[H]
+\centering
+\caption{Final Model Performance}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Shot Type} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\midrule
+Clear & 67.6\% & 89.2\% & 76.9\% & 535 clips \\
+Drive & 58.3\% & 61.6\% & 59.9\% & 740 clips \\
+Drop & 90.7\% & 74.6\% & 81.9\% & 1,518 clips \\
+Lift & 71.0\% & 75.7\% & 73.3\% & 966 clips \\
+Smash & 76.5\% & 75.8\% & 76.1\% & 724 clips \\
+\midrule
+\textbf{Overall} & \textbf{72.8\%} & \textbf{75.4\%} & \textbf{73.6\%} & \textbf{4,483 clips} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{What these numbers mean:}
+\begin{itemize}
+\item \textbf{Precision:} When the model says "This is a Drop shot", it's correct 90.7\% of the time
+\item \textbf{Recall:} Of all actual Drop shots, the model identifies 74.6\% correctly
+\item \textbf{F1-Score:} Balanced measure combining precision and recall
+\item \textbf{Best performer:} Drop shots (90.7\% precision)---probably because we have the most training data
+\item \textbf{Weakest performer:} Drive shots (58.3\% precision)---hardest to distinguish, least training data
+\end{itemize}
+
+\subsection{Common Mistakes the Model Makes}
+
+\begin{table}[H]
+\centering
+\caption{Confusion Matrix (What Gets Confused with What)}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Actual} & \textbf{Clear} & \textbf{Drive} & \textbf{Drop} & \textbf{Lift} & \textbf{Smash} \\
+\midrule
+Clear & 477 & 26 & 5 & 20 & 7 \\
+Drive & 37 & 456 & 47 & 145 & 55 \\
+Drop & 117 & 85 & 1,132 & 114 & 70 \\
+Lift & 39 & 126 & 33 & 731 & 37 \\
+Smash & 36 & 89 & 31 & 19 & 549 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key patterns:}
+\begin{itemize}
+\item \textbf{Drive confused with Lift (145 cases):} Both are mid-height shots with similar body positions
+\item \textbf{Drop confused with Clear (117 cases):} Both start with overhead preparation
+\item \textbf{Clear is easiest (89.2\% recall):} High trajectory is visually distinctive
+\end{itemize}
+
+\subsection{Why This Approach Worked}
+
+\begin{enumerate}
+\item \textbf{Visual information is richer:} Captures racket angle, motion blur, trajectory hints that pose tracking misses
+
+\item \textbf{Transfer learning is powerful:} Starting from a model trained on millions of images gave us a huge head start
+
+\item \textbf{Handling imbalance matters:} Focal Loss and class weights prevented the model from just predicting "Drop" for everything
+
+\item \textbf{Two-stage training:} Training in stages (first image recognition, then motion tracking) improved accuracy by 7.1 percentage points
+\end{enumerate}
+
+\section{Model Architectures: ResNet18-BiLSTM and MobileNet-LSTM}
+
+Two neural network architectures were trained and compared for the video-based classification task. Both share the same input pipeline (16 uniformly sampled frames at 224$\times$224 pixels, with the first 30\% skipped to focus on shot execution) but differ in their backbone and temporal components.
+
+\subsection{ResNet18-BiLSTM: The Accuracy-First Model}
+
+ResNet18-BiLSTM uses a ResNet18 CNN as a per-frame feature extractor, feeding into a two-layer Bidirectional LSTM for temporal modelling.
+
+\begin{table}[H]
+\centering
+\caption{ResNet18-BiLSTM Architecture}
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Component} & \textbf{Details} & \textbf{Role} \\
+\midrule
+Input & $B \times 16 \times 3 \times 224 \times 224$ & Batch of 16 RGB frames per clip \\
+ResNet18 backbone & Pre-trained on ImageNet; final FC removed & Per-frame spatial feature extraction \\
+CNN output & $B \times 16 \times 512$ & 512-dim feature vector per frame \\
+BiLSTM & 2 layers, hidden size 256, bidirectional & Temporal sequence modelling \\
+LSTM output & $B \times 512$ (last timestep, both directions) & Sequence-level representation \\
+Dropout & $p = 0.5$ & Regularisation \\
+Fully connected & $512 \to 5$ & Shot-type classification \\
+\midrule
+\textbf{Total parameters} & \multicolumn{2}{l}{\textbf{$\approx$14 million}} \\
+\textbf{Model size} & \multicolumn{2}{l}{\textbf{164 MB}} \\
+\textbf{Inference time} & \multicolumn{2}{l}{\textbf{150 ms (Apple M1)}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key design choices:}
+\begin{itemize}
+  \item \textbf{Transfer learning:} ResNet18 pre-trained on ImageNet provides rich visual features from the first epoch, dramatically reducing the training data requirement.
+  \item \textbf{Bidirectional LSTM:} Reading the frame sequence both forward and backward lets the model use future context (e.g.\ the follow-through) to disambiguate earlier frames.
+  \item \textbf{Two-stage training:} The CNN backbone was first frozen while the LSTM head trained, then the entire network was fine-tuned end-to-end. This prevented the pre-trained weights from being corrupted early in training and improved final accuracy by 7.1 percentage points.
+  \item \textbf{Focal Loss with class weights:} Addressed the 9.2:1 class imbalance (Drop vs.\ Clear) by penalising mistakes on minority classes more heavily. Clear shots received a weight of $2.9\times$ relative to Drop shots.
+\end{itemize}
+
+\subsection{MobileNet-LSTM: The Lightweight Model}
+
+MobileNet-LSTM replaces the ResNet18 backbone with MobileNetV3-Small and uses a unidirectional LSTM, reducing parameter count by approximately 70\% compared to ResNet18-BiLSTM.
+
+\begin{table}[H]
+\centering
+\caption{MobileNet-LSTM Architecture}
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Component} & \textbf{Details} & \textbf{Role} \\
+\midrule
+Input & $B \times 16 \times 3 \times 224 \times 224$ & Batch of 16 RGB frames per clip \\
+MobileNetV3-Small & Pre-trained on ImageNet; features block only & Lightweight per-frame spatial features \\
+Adaptive avg pool & $\to 1\times 1$ & Spatial aggregation \\
+CNN output & $B \times 16 \times 576$ & 576-dim feature vector per frame \\
+LSTM & 2 layers, hidden size 128, unidirectional & Temporal sequence modelling \\
+LSTM output & $B \times 128$ (last timestep) & Sequence-level representation \\
+Dropout & $p = 0.5$ & Regularisation \\
+Fully connected & $128 \to 5$ & Shot-type classification \\
+\midrule
+\textbf{Total parameters} & \multicolumn{2}{l}{\textbf{$\approx$4 million}} \\
+\textbf{Model size} & \multicolumn{2}{l}{\textbf{$\approx$48 MB}} \\
+\textbf{Inference time} & \multicolumn{2}{l}{\textbf{$<$60 ms (Apple M1)}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key design choices:}
+\begin{itemize}
+  \item \textbf{MobileNetV3 depthwise separable convolutions:} Achieve competitive accuracy with far fewer multiply-add operations, making this architecture suitable for deployment on mobile devices or resource-constrained cloud environments.
+  \item \textbf{Unidirectional LSTM:} Removes the backward pass to halve LSTM memory usage; sufficient because the shot execution phase (after the 30\% skip) is already temporally aligned.
+  \item \textbf{Same training strategy:} Class-weighted Cross-Entropy loss, Adam optimiser, ReduceLROnPlateau scheduler, and early stopping with patience 15.
+\end{itemize}
+
+\subsection{Architecture Diagram}
+
+Figure~\ref{fig:arch_diagram} shows both architectures side by side, highlighting the shared input pipeline and output head, and where they diverge in backbone and temporal module.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.55cm and 1.0cm,
+    every node/.style={font=\small},
+    box/.style={draw, rounded corners=3pt, minimum width=3.0cm, minimum height=0.65cm,
+                align=center, fill=white},
+    shared/.style={box, fill=blue!12, draw=blue!60},
+    optA/.style={box, fill=orange!18, draw=orange!70},
+    optB/.style={box, fill=green!15, draw=green!60},
+    outbox/.style={box, fill=gray!12, draw=gray!60},
+    arrow/.style={-Stealth, thick},
+    label/.style={font=\bfseries\small}
+]
+
+% ---- Shared input ----
+\node[shared] (input)  {Video Clip\\(MP4 / AVI)};
+\node[shared, below=of input] (sample) {Frame Sampler\\16 frames, skip 30\%};
+\node[shared, below=of sample] (resize) {Resize + Normalise\\224$\times$224, ImageNet stats};
+
+% ---- Option A backbone ----
+\node[optA, below left=1.2cm and 1.8cm of resize] (resnet) {ResNet18 (frozen $\to$ tuned)\\512-dim / frame};
+\node[optA, below=of resnet] (bilstm) {BiLSTM\\2 layers $\times$ 256 hidden};
+\node[optA, below=of bilstm] (dropA)  {Dropout $p=0.5$};
+\node[optA, below=of dropA]  (fcA)    {Linear $512\to5$};
+
+% ---- Option B backbone ----
+\node[optB, below right=1.2cm and 1.8cm of resize] (mobnet) {MobileNetV3-Small\\576-dim / frame};
+\node[optB, below=of mobnet] (pool)   {Adaptive Avg Pool};
+\node[optB, below=of pool]   (lstm)   {LSTM\\2 layers $\times$ 128 hidden};
+\node[optB, below=of lstm]   (dropB)  {Dropout $p=0.5$};
+\node[optB, below=of dropB]  (fcB)    {Linear $128\to5$};
+
+% ---- Shared output ----
+\node[outbox, below=3.6cm of resize] (softmax) {Softmax\\5-class probabilities};
+
+% ---- Arrows shared input ----
+\draw[arrow] (input)  -- (sample);
+\draw[arrow] (sample) -- (resize);
+\draw[arrow] (resize) -- (resnet);
+\draw[arrow] (resize) -- (mobnet);
+
+% ---- Option A chain ----
+\draw[arrow] (resnet) -- (bilstm);
+\draw[arrow] (bilstm) -- (dropA);
+\draw[arrow] (dropA)  -- (fcA);
+\draw[arrow] (fcA)    -- (softmax);
+
+% ---- Option B chain ----
+\draw[arrow] (mobnet) -- (pool);
+\draw[arrow] (pool)   -- (lstm);
+\draw[arrow] (lstm)   -- (dropB);
+\draw[arrow] (dropB)  -- (fcB);
+\draw[arrow] (fcB)    -- (softmax);
+
+% ---- Labels ----
+\node[label, orange!80!black, above=0.05cm of resnet, xshift=-0.1cm] {ResNet18-BiLSTM};
+\node[label, green!50!black,  above=0.05cm of mobnet, xshift=0.1cm]  {MobileNet-LSTM};
+
+% ---- Legend ----
+\begin{scope}[shift={(5.8,-0.8)}]
+  \node[shared, minimum width=2.2cm, minimum height=0.5cm] at (0,0)   {\small Shared};
+  \node[optA,   minimum width=2.2cm, minimum height=0.5cm] at (0,-0.7){\small ResNet18-BiLSTM};
+  \node[optB,   minimum width=2.2cm, minimum height=0.5cm] at (0,-1.4){\small MobileNet-LSTM};
+  \node[outbox, minimum width=2.2cm, minimum height=0.5cm] at (0,-2.1){\small Output};
+\end{scope}
+
+\end{tikzpicture}
+\caption{Side-by-side architecture diagram for ResNet18-BiLSTM ($\approx$14M params) and MobileNet-LSTM ($\approx$4M params). Both process 16 frames per clip with the first 30\% skipped to focus on shot execution.}
+\label{fig:arch_diagram}
+\end{figure}
+
+\subsection{Comparison Summary}
+
+\begin{table}[H]
+\centering
+\caption{ResNet18-BiLSTM vs.\ MobileNet-LSTM at a Glance}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Property} & \textbf{ResNet18-BiLSTM} & \textbf{MobileNet-LSTM} \\
+\midrule
+CNN backbone & ResNet18 & MobileNetV3-Small \\
+CNN feature dim & 512 & 576 \\
+Temporal module & BiLSTM (bidirectional) & LSTM (unidirectional) \\
+LSTM hidden size & 256 & 128 \\
+Parameters & $\approx$14 M & $\approx$4 M \\
+Model size & 164 MB & $\approx$48 MB \\
+Inference (M1) & 150 ms & $<$60 ms \\
+Primary advantage & Higher accuracy & Lighter, faster, mobile-ready \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+ResNet18-BiLSTM was selected for the deployed Shot Coach application due to its higher accuracy. MobileNet-LSTM provides a practical alternative for scenarios where model size or inference latency is a constraint (e.g.\ on-device mobile deployment).
+
+\section{Phase 3: Building the Shot Coach Application}
+
+\subsection{What Users Needed}
+
+Based on feedback, users wanted:
+\begin{itemize}
+\item Easy upload interface---no technical knowledge required
+\item Instant results---under 10 seconds
+\item Confidence scores---how sure is the AI?
+\item Transparency---which part of my video was analyzed?
+\item Warnings---if something looks wrong with the video
+\item Shot descriptions---what does each shot mean?
+\end{itemize}
+
+\subsection{How It Works}
+
+\begin{table}[H]
+\centering
+\caption{Shot Coach Application Pipeline}
+\begin{tabular}{p{3cm}p{9cm}}
+\toprule
+\textbf{Step} & \textbf{What Happens} \\
+\midrule
+1. Upload & User uploads MP4/AVI video (2-10 seconds recommended) \\
+2. Frame Extraction & Extract 16 frames evenly spaced across entire video \\
+3. Model Inference & ResNet18+BiLSTM processes frames (150ms on Mac M1) \\
+4. Metadata Analysis & Calculate duration, FPS, frame timestamps \\
+5. Warning System & Check for issues (too long, too short, low confidence) \\
+6. Results Display & Show prediction, confidence, all probabilities, metadata \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Features}
+
+\textbf{1. Video Metadata Transparency}
+
+Users can see exactly what the AI analyzed:
+\begin{itemize}
+\item Total video duration and frame count
+\item Which 16 frames were sampled (frame numbers and timestamps)
+\item Example: "Analyzed frames 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 74 from a 2.43-second video"
+\end{itemize}
+
+\textbf{2. Smart Warning System}
+
+The app warns users about potential issues:
+
+\begin{table}[H]
+\centering
+\caption{Automatic Warnings}
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Trigger} & \textbf{Warning} & \textbf{Explanation} \\
+\midrule
+Video $>$ 5s & [WARNING] & Video likely contains multiple shots, may confuse model \\
+Video $<$ 1.5s & [INFO] & Too short to capture full motion, may affect accuracy \\
+Confidence $<$ 60\% & [WARNING] & Low confidence, possibly unusual angle or multiple shots \\
+Confidence $>$ 85\% & [INFO] & High confidence, video matches training data well \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{3. Probability Visualization}
+
+Shows confidence for all 5 shot types, not just the top prediction:
+\begin{verbatim}
+Smash    ########################  94.3%
+Clear    ####                       4.2%
+Drive    #                          1.1%
+Drop                                0.3%
+Lift                                0.1%
+\end{verbatim}
+
+This helps users understand close calls (e.g., "88\% Smash, 10\% Clear---pretty close!").
+
+\subsection{Technology Stack}
+
+\begin{itemize}
+\item \textbf{Frontend:} Streamlit (Python web framework for data apps)
+\item \textbf{Video Processing:} OpenCV for frame extraction
+\item \textbf{Model Inference:} PyTorch with trained ResNet18+BiLSTM
+\item \textbf{Deployment:} Hugging Face Spaces (public cloud hosting, zero infrastructure required)
+\item \textbf{Model Size:} 164 MB (stored via Git LFS in the HF Space repository)
+\end{itemize}
+
+\subsection{Deployment}\label{sec:deployment}
+
+The application is publicly deployed on Hugging Face Spaces and accessible to anyone with a web browser---no installation required:
+
+\begin{center}
+\url{https://huggingface.co/spaces/paulgk/badminton-shot}
+\end{center}
+
+Hugging Face Spaces provides free GPU-backed hosting for Streamlit applications. The deployment workflow is straightforward: push the \texttt{app.py}, \texttt{requirements.txt}, and model weights to the Space repository, and the platform automatically builds and serves the application. This removes the friction of local setup and makes the tool genuinely accessible to recreational players.
+
+The full project source code---training notebooks, model weights, and processing scripts---is available on GitHub at \url{https://github.com/paulgk/iti123_v2}.
+
+\subsection{Application Limitations and Future Work}
+
+\textbf{Current Limitations:}
+\begin{itemize}
+\item \textbf{Single-shot assumption:} Model expects one shot per video. Multi-shot clips will confuse it.
+\item \textbf{Camera angle sensitivity:} Trained on side-court broadcast angles. Front/back/overhead views may perform worse.
+\item \textbf{2D analysis only:} Can't detect depth or 3D trajectory.
+\item \textbf{No shot segmentation:} Can't automatically detect where shots begin/end in longer videos.
+\end{itemize}
+
+\textbf{Future Improvements:}
+\begin{itemize}
+\item Add automatic shot segmentation for rally videos
+\item Train on multiple camera angles for robustness
+\item Add visual explanations (highlight racket/shuttlecock in frames)
+\item Provide technique tips based on shot quality
+\item Mobile deployment for on-court use
+\end{itemize}
+
+\section{Comparative Analysis: Why Video Beat Pose Tracking}
+
+\begin{table}[H]
+\centering
+\caption{Phase 1 vs Phase 2 Comparison}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Aspect} & \textbf{Phase 1 (Pose)} & \textbf{Phase 2 (Video)} \\
+\midrule
+\textbf{Accuracy} & 50.0\% & 74.6\% \\
+\textbf{Improvement} & Baseline & +49\% relative \\
+\textbf{Classes} & 2 (Clear, Smash) & 5 (all shot types) \\
+\textbf{Features Used} & 60 engineered & 512 learned \\
+\textbf{Captures Racket} & No & Yes (implicit) \\
+\textbf{Captures Motion} & Yes (explicit) & Yes (implicit) \\
+\textbf{Training Data} & 4,655 clips & 18,169 clips \\
+\textbf{Inference Time} & 50ms & 150ms \\
+\textbf{Model Size} & 5 MB & 164 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why video-based approach won:}
+\begin{enumerate}
+\item \textbf{Information richness:} Video frames contain everything---body, racket, environment, motion blur
+\item \textbf{Learned vs engineered features:} Neural networks automatically discover relevant patterns instead of requiring manual feature engineering
+\item \textbf{Transfer learning advantage:} Starting from ImageNet pre-training provided strong visual understanding
+\item \textbf{No missing information:} Video captures what pose tracking misses (equipment, trajectory hints)
+\end{enumerate}
+
+\section{AI Governance and Ethical Considerations}
+
+\subsection{Transparency}
+
+\textbf{What I implemented:}
+\begin{itemize}
+\item Video metadata shows exact frames analyzed
+\item Confidence scores indicate prediction certainty
+\item All 5 class probabilities displayed, not just top prediction
+\item Warnings explain potential issues clearly
+\end{itemize}
+
+\textbf{Why it matters:} Users deserve to understand what the AI analyzed and how confident it is. No "black box" predictions.
+
+\subsection{Privacy}
+
+\textbf{What I implemented:}
+\begin{itemize}
+\item Video processing occurs on Hugging Face Spaces infrastructure; videos are transmitted to the server only for inference and are not stored or logged beyond the request lifetime
+\item No user accounts or personally identifiable information are collected
+\item Temporary files are deleted after each analysis session
+\end{itemize}
+
+\textbf{Why it matters:} Cloud deployment introduces a data-in-transit consideration. The application is designed for non-sensitive recreational footage, and the stateless inference model means no video is retained after a request completes.
+
+\subsection{Safety and User Control}
+
+\textbf{What I implemented:}
+\begin{itemize}
+\item System provides suggestions, never commands
+\item Warnings help users interpret results appropriately
+\item Shot descriptions are educational, not prescriptive
+\item Low confidence triggers caution rather than false certainty
+\end{itemize}
+
+\textbf{Why it matters:} AI should augment human decision-making, not replace it. Users need context to evaluate suggestions critically.
+
+\subsection{Fairness Considerations}
+
+\textbf{Potential biases:}
+\begin{itemize}
+\item \textbf{Professional player bias:} Trained on professional matches. May not generalize to recreational players with different techniques.
+\item \textbf{Camera angle bias:} Only trained on broadcast side-court angles. Other angles may perform worse.
+\item \textbf{Gender representation:} Need to verify balanced representation across genders in training data.
+\end{itemize}
+
+\textbf{Mitigation strategies:}
+\begin{itemize}
+\item Display clear warnings about camera angle sensitivity
+\item Acknowledge performance may vary with skill level
+\item Future work: collect diverse dataset with various angles, skill levels, body types
+\end{itemize}
+
+\subsection{Alignment with Singapore's AI Governance Framework}
+
+This project follows principles from Singapore's Model AI Governance Framework:
+
+\begin{table}[H]
+\centering
+\caption{AI Governance Alignment}
+\begin{tabular}{p{3cm}p{9cm}}
+\toprule
+\textbf{Principle} & \textbf{Implementation} \\
+\midrule
+Transparency & Metadata display, confidence scores, warnings \\
+Explainability & Shot descriptions, probability visualization \\
+Fairness & Acknowledge limitations, warn about biases \\
+Accountability & Clear documentation of model capabilities and limitations \\
+Human Agency & Suggestions not commands, user maintains control \\
+Data Governance & Stateless cloud inference, no data retention, local fallback option \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Lessons Learned and Conclusion}
+
+\subsection{Key Takeaways}
+
+\begin{enumerate}
+\item \textbf{Failure is educational:} Phase 1's failure taught me more than if it had partially worked. Negative results have value when analyzed rigorously.
+
+\item \textbf{Data quality trumps algorithm sophistication:} No amount of model tuning can extract information that isn't in your features. Choose your input data wisely.
+
+\item \textbf{Domain expertise matters:} Consulting badminton coaches early would have revealed that racket angle, not body pose, drives shot selection.
+
+\item \textbf{Transfer learning is powerful:} Pre-trained models provide a massive head start. Don't train from scratch unless you have millions of examples.
+
+\item \textbf{User experience is critical:} The best model is useless if users can't access or trust it. Transparency and warnings build trust.
+
+\item \textbf{Imbalanced data requires special handling:} Focal Loss and class weighting prevented the model from ignoring minority classes.
+
+\item \textbf{Iterate quickly:} Spending 2 weeks on Phase 1 before pivoting was better than spending 2 months perfecting a fundamentally flawed approach.
+\end{enumerate}
+
+\subsection{Project Contributions}
+
+\textbf{Technical Contributions:}
+\begin{itemize}
+\item Empirical demonstration that skeletal pose is insufficient for overhead shot discrimination
+\item Successful application of ResNet18+BiLSTM to badminton shot classification (74.6\% accuracy)
+\item Effective handling of 9.2:1 class imbalance using Focal Loss
+\item Video metadata transparency feature addressing user trust concerns
+\end{itemize}
+
+\textbf{Practical Contributions:}
+\begin{itemize}
+\item Publicly deployed web application on Hugging Face Spaces (\url{https://huggingface.co/spaces/paulgk/badminton-shot})---accessible to anyone with a browser, no installation required
+\item Full source code and training notebooks available on GitHub (\url{https://github.com/paulgk/iti123_v2})
+\item Complete documentation enabling reproducibility
+\item Open acknowledgment of limitations and failure modes
+\item Demonstration of responsible AI development with governance principles
+\end{itemize}
+
+\subsection{Future Research Directions}
+
+\textbf{Short-term (3-6 months):}
+\begin{itemize}
+\item Implement automatic shot segmentation for rally videos
+\item Add visual explanations (highlight racket position in frames)
+\item Collect multi-angle dataset and fine-tune for angle robustness
+\end{itemize}
+
+\textbf{Medium-term (6-12 months):}
+\begin{itemize}
+\item Extend to shot quality assessment (not just type, but execution quality)
+\item Add technique recommendations based on common errors
+\item Develop a dedicated mobile app for on-court real-time feedback (the current HF Spaces deployment is already mobile-browser accessible)
+\end{itemize}
+
+\textbf{Long-term (1+ years):}
+\begin{itemize}
+\item Full rally analysis with stroke sequence patterns
+\item 3D pose estimation for depth perception
+\item Personalized coaching adapting to individual player patterns
+\item Integration with wearable sensors for multi-modal analysis
+\end{itemize}
+
+\subsection{Final Reflection}
+
+This project demonstrates the complete machine learning lifecycle: problem formulation, initial hypothesis, failed experiment, pivot to successful approach, and real-world deployment. The journey from 50\% accuracy (failure) to 74.6\% accuracy (success) to a functional user application illustrates that AI development is iterative, requires domain knowledge, and must prioritize user needs alongside technical performance.
+
+The Shot Coach application achieves its goal of democratizing access to shot analysis. With public deployment on Hugging Face Spaces (\url{https://huggingface.co/spaces/paulgk/badminton-shot}), the tool is now accessible to any recreational player with a smartphone or laptop---no installation required. Acknowledged limitations remain around camera angles and single-shot assumptions. By following AI governance principles---transparency, privacy, user control---the system builds trust while providing actionable feedback.
+
+Most importantly, this project proves that negative results, when analyzed rigorously, are as valuable as positive ones. Knowing that pose-only approaches fundamentally cannot work for this problem saves future researchers from attempting the same path.
+
+\section*{Acknowledgments}
+
+This project used the ShuttleSet dataset from Wei-Yao Wang et al. (2023), MediaPipe Pose from Google Research, and PyTorch/OpenCV frameworks. Code development, debugging, and report preparation were assisted by Claude Code (Anthropic) and ChatGPT (OpenAI). All model training, evaluation, and application development were performed by the author.
+
+\begin{thebibliography}{9}
+
+\bibitem{ShuttleSet}
+Wei-Yao Wang et al. \textit{ShuttleSet: A Human-Annotated Stroke-Level Singles Dataset for Badminton Tactical Analysis}. CoRR, abs/2306.04948, 2023.
+
+\bibitem{MediaPipe}
+Google Research. \textit{MediaPipe Pose}. \url{https://google.github.io/mediapipe/solutions/pose.html}, 2023.
+
+\bibitem{ResNet}
+Kaiming He et al. \textit{Deep Residual Learning for Image Recognition}. CVPR 2016.
+
+\bibitem{FocalLoss}
+Tsung-Yi Lin et al. \textit{Focal Loss for Dense Object Detection}. ICCV 2017.
+
+\bibitem{Streamlit}
+Streamlit Inc. \textit{Streamlit: The fastest way to build data apps}. \url{https://streamlit.io}, 2024.
+
+\bibitem{HuggingFaceSpaces}
+Hugging Face. \textit{Spaces: ML Demo Apps on Hugging Face}. \url{https://huggingface.co/spaces}, 2024. Shot Coach deployment: \url{https://huggingface.co/spaces/paulgk/badminton-shot}.
+
+\bibitem{GitHub}
+Paul George Karippaparambil. \textit{iti123\_v2: Badminton Shot Classification Project}. GitHub, 2026. \url{https://github.com/paulgk/iti123_v2}.
+
+\bibitem{ClaudeCode}
+Anthropic. \textit{Claude Code: AI-Powered Command Line Coding Tool}. \url{https://www.anthropic.com/claude/code}, 2025.
+
+\bibitem{PyTorch}
+Adam Paszke et al. \textit{PyTorch: An Imperative Style, High-Performance Deep Learning Library}. NeurIPS 2019.
+
+\end{thebibliography}
+
+\end{document}
