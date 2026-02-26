@@ -14,7 +14,7 @@
 
 \setstretch{1.15}
 
-\title{\textbf{ITI123 Final Project Report}\\\vspace{0.3cm}Teaching AI to Recognize Badminton Shots:\\A Journey from Failure to Success}
+\title{\textbf{ITI123 Final Project Report}\\\vspace{0.3cm}AI-Based Badminton Stroke Classification}
 \author{\textbf{Paul George Karippaparambil}\\Student ID: 8031408E}
 \date{ITI123 Generative AI \& Deep Learning\\February 06, 2026}
 
@@ -23,9 +23,9 @@
 \thispagestyle{empty}
 
 \begin{abstract}
-This project built an AI system that can watch a badminton video and tell you what type of shot was played. I tried three different approaches: First, I attempted using body skeleton tracking (like stick figures) to distinguish between Clear and Smash shots, but this failed because players have identical body positions for both shots. Second, I switched to analyzing the actual video frames using a neural network that combines image recognition with motion tracking, achieving 74.6\% accuracy across five different shot types. Finally, I built a user-friendly web application where anyone can upload a video and get instant shot analysis with confidence scores and helpful warnings.
+This project built an AI system that watches a badminton video and identifies what type of shot was played. Three approaches were explored: First, body skeleton tracking (joint keypoints) was used to distinguish between Clear and Smash shots, but this failed because players had nearly identical body positions for both shots. Second, raw video frames were analysed using a neural network combining image recognition with motion tracking, achieving 75.3\% accuracy across five shot types with the MobileNet-LSTM model. Finally, a user-friendly web application was built where anyone could upload a video and receive instant shot analysis with confidence scores and warnings.
 
-The key lesson: Sometimes the obvious approach doesn't work, and you need to pivot to what the data actually shows you. This project demonstrates the complete AI development process---from initial failure through successful implementation to real-world deployment.
+The key lesson was that the obvious approach did not work, and pivoting to what the data revealed was necessary. This project demonstrates the complete AI development process---from initial failure through successful implementation to real-world deployment.
 \end{abstract}
 
 \newpage
@@ -47,9 +47,9 @@ This project has three parts:
 \begin{enumerate}
 \item \textbf{Phase 1 - The Failed Experiment:} Tried using body pose tracking (think stick figures) to classify shots. Result: 50\% accuracy---no better than random guessing. But this failure taught me what features actually matter.
 
-\item \textbf{Phase 2 - The Successful Model:} Built a neural network that watches video frames and tracks motion over time. Result: 74.6\% accuracy across five shot types (Clear, Drive, Drop, Lift, Smash).
+\item \textbf{Phase 2 - The Successful Model:} Built a neural network that watches video frames and tracks motion over time. Result: 75.3\% accuracy across five shot types (Clear, Drive, Drop, Lift, Smash) using the MobileNet-LSTM model.
 
-\item \textbf{Phase 3 - The User Application:} Created a web app called ``Shot Coach'' where users upload videos and get instant analysis with explanations and confidence scores. The app is publicly deployed at \url{https://huggingface.co/spaces/paulgk/badminton-shot} and the full project source is available at \url{https://github.com/paulgk/iti123_v2}.
+\item \textbf{Phase 3 - The User Application:} Created a web app called ``Shot Coach'' where users upload videos and get instant analysis with explanations and confidence scores. The app is publicly deployed on Hugging Face Spaces and the full project source is available on GitHub (see Section~\ref{sec:deployment} for URLs).
 \end{enumerate}
 
 \subsection{The Five Shot Types}
@@ -90,18 +90,18 @@ I used a publicly available dataset called \textbf{ShuttleSet}, which contains p
 \toprule
 \textbf{Shot Type} & \textbf{Samples} & \textbf{Percentage} & \textbf{Balance} \\
 \midrule
-Drop & 7,088 & 31.8\% & Majority class \\
-Lift & 4,851 & 21.8\% & Well-represented \\
-Drive & 3,704 & 16.6\% & Moderate \\
-Smash & 3,596 & 16.1\% & Moderate \\
-Clear & 3,063 & 13.7\% & Minority class \\
+Drop & 7,549 & 33.8\% & Majority class \\
+Lift & 4,806 & 21.5\% & Well-represented \\
+Drive & 3,683 & 16.5\% & Moderate \\
+Smash & 3,602 & 16.2\% & Moderate \\
+Clear & 2,662 & 11.9\% & Minority class \\
 \midrule
-\textbf{Total} & 22,302 & 100\% & Imbalanced (9.2:1 ratio) \\
+\textbf{Total} & 22,302 & 100\% & Imbalanced (2.8:1 ratio) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The biggest challenge? \textbf{Class imbalance}---I had 2.3 times more Drop shots than Clears. This means the AI might become biased toward predicting Drop shots more often.
+The biggest challenge? \textbf{Class imbalance}---I had 2.8 times more Drop shots than Clears. This means the AI might become biased toward predicting Drop shots more often.
 
 \section{Phase 1: Why Body Pose Tracking Failed}
 
@@ -237,7 +237,9 @@ Early stopping & Stop if validation accuracy doesn't improve for 10 epochs \\
 \end{tabular}
 \end{table}
 
-\subsection{Results: 74.6\% Accuracy}
+\subsection{Results: 74.6\% Accuracy (ResNet18-BiLSTM Baseline)}\label{sec:resnet-results}
+
+\textit{Note: These results are for the ResNet18-BiLSTM model. A lighter MobileNet-LSTM model trained subsequently achieved 75.3\% accuracy and was selected for deployment; see Section~\ref{sec:model-arch}.}
 
 \begin{table}[H]
 \centering
@@ -270,7 +272,7 @@ Smash & 76.5\% & 75.8\% & 76.1\% & 724 clips \\
 
 \begin{table}[H]
 \centering
-\caption{Confusion Matrix (What Gets Confused with What)}
+\caption{Confusion Matrix for ResNet18-BiLSTM (What Gets Confused with What)}
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Actual} & \textbf{Clear} & \textbf{Drive} & \textbf{Drop} & \textbf{Lift} & \textbf{Smash} \\
@@ -300,10 +302,21 @@ Smash & 36 & 89 & 31 & 19 & 549 \\
 
 \item \textbf{Handling imbalance matters:} Focal Loss and class weights prevented the model from just predicting "Drop" for everything
 
-\item \textbf{Two-stage training:} Training in stages (first image recognition, then motion tracking) improved accuracy by 7.1 percentage points
+\item \textbf{Two-stage training:} Training in stages (first image recognition, then motion tracking) meaningfully improved accuracy over end-to-end training from scratch
 \end{enumerate}
 
-\section{Model Architectures: ResNet18-BiLSTM and MobileNet-LSTM}
+\subsection{Training History: ResNet18-BiLSTM}
+
+Figure~\ref{fig:history_resnet} shows the loss and accuracy curves over 44 epochs of training. The gap between training and validation accuracy in later epochs reflects mild overfitting, which early stopping contained.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{training_history_resnet.png}
+\caption{ResNet18-BiLSTM training history (44 epochs). Left: cross-entropy loss; Right: accuracy. Validation accuracy plateaued around epoch 35, triggering early stopping at epoch 44. Final test accuracy: 74.6\%.}
+\label{fig:history_resnet}
+\end{figure}
+
+\section{Model Architectures: ResNet18-BiLSTM and MobileNet-LSTM}\label{sec:model-arch}
 
 Two neural network architectures were trained and compared for the video-based classification task. Both share the same input pipeline (16 uniformly sampled frames at 224$\times$224 pixels, with the first 30\% skipped to focus on shot execution) but differ in their backbone and temporal components.
 
@@ -337,8 +350,8 @@ Fully connected & $512 \to 5$ & Shot-type classification \\
 \begin{itemize}
   \item \textbf{Transfer learning:} ResNet18 pre-trained on ImageNet provides rich visual features from the first epoch, dramatically reducing the training data requirement.
   \item \textbf{Bidirectional LSTM:} Reading the frame sequence both forward and backward lets the model use future context (e.g.\ the follow-through) to disambiguate earlier frames.
-  \item \textbf{Two-stage training:} The CNN backbone was first frozen while the LSTM head trained, then the entire network was fine-tuned end-to-end. This prevented the pre-trained weights from being corrupted early in training and improved final accuracy by 7.1 percentage points.
-  \item \textbf{Focal Loss with class weights:} Addressed the 9.2:1 class imbalance (Drop vs.\ Clear) by penalising mistakes on minority classes more heavily. Clear shots received a weight of $2.9\times$ relative to Drop shots.
+  \item \textbf{Two-stage training:} The CNN backbone was first frozen while the LSTM head trained, then the entire network was fine-tuned end-to-end. This prevented the pre-trained weights from being corrupted early in training and meaningfully improved final accuracy compared to end-to-end training from the start.
+  \item \textbf{Focal Loss with class weights:} Addressed the 2.8:1 class imbalance (Drop vs.\ Clear) by penalising mistakes on minority classes more heavily. Clear shots received a weight of $2.9\times$ relative to Drop shots.
 \end{itemize}
 
 \subsection{MobileNet-LSTM: The Lightweight Model}
@@ -354,7 +367,7 @@ MobileNet-LSTM replaces the ResNet18 backbone with MobileNetV3-Small and uses a 
 \midrule
 Input & $B \times 16 \times 3 \times 224 \times 224$ & Batch of 16 RGB frames per clip \\
 MobileNetV3-Small & Pre-trained on ImageNet; features block only & Lightweight per-frame spatial features \\
-Adaptive avg pool & $\to 1\times 1$ & Spatial aggregation \\
+Adaptive avg pool & $7\times 7 \to 1\times 1$ & Spatial aggregation \\
 CNN output & $B \times 16 \times 576$ & 576-dim feature vector per frame \\
 LSTM & 2 layers, hidden size 128, unidirectional & Temporal sequence modelling \\
 LSTM output & $B \times 128$ (last timestep) & Sequence-level representation \\
@@ -362,7 +375,7 @@ Dropout & $p = 0.5$ & Regularisation \\
 Fully connected & $128 \to 5$ & Shot-type classification \\
 \midrule
 \textbf{Total parameters} & \multicolumn{2}{l}{\textbf{$\approx$4 million}} \\
-\textbf{Model size} & \multicolumn{2}{l}{\textbf{$\approx$48 MB}} \\
+\textbf{Model size} & \multicolumn{2}{l}{\textbf{$\approx$17 MB}} \\
 \textbf{Inference time} & \multicolumn{2}{l}{\textbf{$<$60 ms (Apple M1)}} \\
 \bottomrule
 \end{tabular}
@@ -374,6 +387,17 @@ Fully connected & $128 \to 5$ & Shot-type classification \\
   \item \textbf{Unidirectional LSTM:} Removes the backward pass to halve LSTM memory usage; sufficient because the shot execution phase (after the 30\% skip) is already temporally aligned.
   \item \textbf{Same training strategy:} Class-weighted Cross-Entropy loss, Adam optimiser, ReduceLROnPlateau scheduler, and early stopping with patience 15.
 \end{itemize}
+
+\subsubsection*{Training History: MobileNet-LSTM}
+
+Figure~\ref{fig:history_mobilenet} shows the training curves over 56 epochs. MobileNet-LSTM trained for more epochs before early stopping, suggesting slower but steadier convergence relative to ResNet18-BiLSTM, and achieved a higher final test accuracy of 75.3\%.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{training_history_mobilenet.png}
+\caption{MobileNet-LSTM training history (56 epochs). Left: cross-entropy loss; Right: accuracy. The model converged more gradually than ResNet18-BiLSTM and achieved a higher test accuracy of 75.3\%, making it the selected deployment model.}
+\label{fig:history_mobilenet}
+\end{figure}
 
 \subsection{Architecture Diagram}
 
@@ -465,14 +489,14 @@ CNN feature dim & 512 & 576 \\
 Temporal module & BiLSTM (bidirectional) & LSTM (unidirectional) \\
 LSTM hidden size & 256 & 128 \\
 Parameters & $\approx$14 M & $\approx$4 M \\
-Model size & 164 MB & $\approx$48 MB \\
+Model size & 164 MB & $\approx$17 MB \\
 Inference (M1) & 150 ms & $<$60 ms \\
 Primary advantage & Higher accuracy & Lighter, faster, mobile-ready \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-ResNet18-BiLSTM was selected for the deployed Shot Coach application due to its higher accuracy. MobileNet-LSTM provides a practical alternative for scenarios where model size or inference latency is a constraint (e.g.\ on-device mobile deployment).
+MobileNet-LSTM was selected for the deployed Shot Coach application: it achieves higher test accuracy (75.3\% vs.\ 74.6\%) while using approximately 70\% fewer parameters, giving faster inference and a smaller deployment footprint. ResNet18-BiLSTM remains a valid alternative where bidirectional temporal context is preferred over model efficiency.
 
 \section{Phase 3: Building the Shot Coach Application}
 
@@ -499,7 +523,7 @@ Based on feedback, users wanted:
 \midrule
 1. Upload & User uploads MP4/AVI video (2-10 seconds recommended) \\
 2. Frame Extraction & Extract 16 frames evenly spaced across entire video \\
-3. Model Inference & ResNet18+BiLSTM processes frames (150ms on Mac M1) \\
+3. Model Inference & MobileNet-LSTM processes frames (\textless{}60ms on Mac M1) \\
 4. Metadata Analysis & Calculate duration, FPS, frame timestamps \\
 5. Warning System & Check for issues (too long, too short, low confidence) \\
 6. Results Display & Show prediction, confidence, all probabilities, metadata \\
@@ -555,9 +579,9 @@ This helps users understand close calls (e.g., "88\% Smash, 10\% Clear---pretty 
 \begin{itemize}
 \item \textbf{Frontend:} Streamlit (Python web framework for data apps)
 \item \textbf{Video Processing:} OpenCV for frame extraction
-\item \textbf{Model Inference:} PyTorch with trained ResNet18+BiLSTM
+\item \textbf{Model Inference:} PyTorch with trained MobileNet-LSTM
 \item \textbf{Deployment:} Hugging Face Spaces (public cloud hosting, zero infrastructure required)
-\item \textbf{Model Size:} 164 MB (stored via Git LFS in the HF Space repository)
+\item \textbf{Model Size:} $\sim$17 MB (stored via Git LFS in the HF Space repository)
 \end{itemize}
 
 \subsection{Deployment}\label{sec:deployment}
@@ -570,7 +594,7 @@ The application is publicly deployed on Hugging Face Spaces and accessible to an
 
 Hugging Face Spaces provides free GPU-backed hosting for Streamlit applications. The deployment workflow is straightforward: push the \texttt{app.py}, \texttt{requirements.txt}, and model weights to the Space repository, and the platform automatically builds and serves the application. This removes the friction of local setup and makes the tool genuinely accessible to recreational players.
 
-The full project source code---training notebooks, model weights, and processing scripts---is available on GitHub at \url{https://github.com/paulgk/iti123_v2}.
+The full project source code---training notebooks, model weights, and processing scripts---is available on GitHub at \url{https://github.com/paulgk/iti123_v2}. The repository \texttt{README.md} documents the project structure, lists all key files, and provides step-by-step instructions for running the application locally (\texttt{streamlit run badminton-shot/src/streamlit\_app.py}) and for reproducing the training from scratch using the Colab notebooks in \texttt{notebooks/}. All dependencies are pinned in \texttt{requirements.txt}, and the trained model weights are stored via Git LFS, ensuring a clean one-command local setup.
 
 \subsection{Application Limitations and Future Work}
 
@@ -600,15 +624,15 @@ The full project source code---training notebooks, model weights, and processing
 \toprule
 \textbf{Aspect} & \textbf{Phase 1 (Pose)} & \textbf{Phase 2 (Video)} \\
 \midrule
-\textbf{Accuracy} & 50.0\% & 74.6\% \\
-\textbf{Improvement} & Baseline & +49\% relative \\
+\textbf{Accuracy} & 50.0\% & 75.3\% \\
+\textbf{Improvement} & Baseline & +51\% relative \\
 \textbf{Classes} & 2 (Clear, Smash) & 5 (all shot types) \\
-\textbf{Features Used} & 60 engineered & 512 learned \\
+\textbf{Features Used} & 60 engineered & 576 learned \\
 \textbf{Captures Racket} & No & Yes (implicit) \\
 \textbf{Captures Motion} & Yes (explicit) & Yes (implicit) \\
-\textbf{Training Data} & 4,655 clips & 18,169 clips \\
-\textbf{Inference Time} & 50ms & 150ms \\
-\textbf{Model Size} & 5 MB & 164 MB \\
+\textbf{Training Data} & 4,655 clips & 17,819 clips \\
+\textbf{Inference Time} & 50ms & \textless{}60ms \\
+\textbf{Model Size} & 5 MB & $\sim$17 MB \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -720,8 +744,8 @@ Data Governance & Stateless cloud inference, no data retention, local fallback o
 \textbf{Technical Contributions:}
 \begin{itemize}
 \item Empirical demonstration that skeletal pose is insufficient for overhead shot discrimination
-\item Successful application of ResNet18+BiLSTM to badminton shot classification (74.6\% accuracy)
-\item Effective handling of 9.2:1 class imbalance using Focal Loss
+\item Successful application of MobileNet-LSTM to badminton shot classification (75.3\% accuracy)
+\item Effective handling of 2.8:1 class imbalance using Focal Loss
 \item Video metadata transparency feature addressing user trust concerns
 \end{itemize}
 
@@ -760,7 +784,7 @@ Data Governance & Stateless cloud inference, no data retention, local fallback o
 
 \subsection{Final Reflection}
 
-This project demonstrates the complete machine learning lifecycle: problem formulation, initial hypothesis, failed experiment, pivot to successful approach, and real-world deployment. The journey from 50\% accuracy (failure) to 74.6\% accuracy (success) to a functional user application illustrates that AI development is iterative, requires domain knowledge, and must prioritize user needs alongside technical performance.
+This project demonstrates the complete machine learning lifecycle: problem formulation, initial hypothesis, failed experiment, pivot to successful approach, and real-world deployment. The journey from 50\% accuracy (failure) to 75.3\% accuracy (success) to a functional user application illustrates that AI development is iterative, requires domain knowledge, and must prioritize user needs alongside technical performance.
 
 The Shot Coach application achieves its goal of democratizing access to shot analysis. With public deployment on Hugging Face Spaces (\url{https://huggingface.co/spaces/paulgk/badminton-shot}), the tool is now accessible to any recreational player with a smartphone or laptop---no installation required. Acknowledged limitations remain around camera angles and single-shot assumptions. By following AI governance principles---transparency, privacy, user control---the system builds trust while providing actionable feedback.
 
@@ -789,9 +813,6 @@ Streamlit Inc. \textit{Streamlit: The fastest way to build data apps}. \url{http
 
 \bibitem{HuggingFaceSpaces}
 Hugging Face. \textit{Spaces: ML Demo Apps on Hugging Face}. \url{https://huggingface.co/spaces}, 2024. Shot Coach deployment: \url{https://huggingface.co/spaces/paulgk/badminton-shot}.
-
-\bibitem{GitHub}
-Paul George Karippaparambil. \textit{iti123\_v2: Badminton Shot Classification Project}. GitHub, 2026. \url{https://github.com/paulgk/iti123_v2}.
 
 \bibitem{ClaudeCode}
 Anthropic. \textit{Claude Code: AI-Powered Command Line Coding Tool}. \url{https://www.anthropic.com/claude/code}, 2025.
